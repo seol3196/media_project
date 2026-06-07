@@ -1,0 +1,7 @@
+node_modules/
+client/dist/
+dist/
+server/db/media.db
+server/db/media.db-shm
+server/db/media.db-wal
+.DS_Store

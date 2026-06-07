@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  background: #f7f7f2;
+  color: #1f2933;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.focus-ring:focus {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
