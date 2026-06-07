@@ -19,6 +19,11 @@ CREATE TABLE IF NOT EXISTS teachers (
   activity1_revealed TEXT DEFAULT '{}',
   activity2_step INTEGER DEFAULT 1,
   activity2_revealed TEXT DEFAULT '{}',
+  activity3_stage TEXT DEFAULT 'intro',
+  activity3_intro_step INTEGER DEFAULT 0,
+  activity3_hunt_index INTEGER DEFAULT 0,
+  activity3_revealed BOOLEAN DEFAULT FALSE,
+  activity3_team_count INTEGER DEFAULT 2,
   board_open BOOLEAN DEFAULT FALSE,
   revealed BOOLEAN DEFAULT FALSE
 );
@@ -110,9 +115,31 @@ CREATE TABLE IF NOT EXISTS phase3_comments (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   student_id INTEGER NOT NULL,
   team TEXT NOT NULL,
+  post_id TEXT,
+  nickname TEXT,
+  comment_type TEXT DEFAULT 'mission',
   content TEXT NOT NULL,
   is_revealed BOOLEAN DEFAULT FALSE,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(student_id) REFERENCES students(id)
+);
+
+CREATE TABLE IF NOT EXISTS phase3_selections (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  post_id TEXT NOT NULL,
+  selected_comment_ids TEXT NOT NULL,
+  submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(student_id, post_id),
+  FOREIGN KEY(student_id) REFERENCES students(id)
+);
+
+CREATE TABLE IF NOT EXISTS phase3_team_ready (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id INTEGER NOT NULL,
+  team TEXT NOT NULL,
+  ready_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(student_id),
   FOREIGN KEY(student_id) REFERENCES students(id)
 );
 
@@ -145,6 +172,28 @@ CREATE TABLE IF NOT EXISTS phase3_reflections (
 );
 `);
 
+const studentsSchema = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'students'").get()?.sql || '';
+if (studentsSchema.includes("CHECK(team IN ('A','B'))")) {
+  db.pragma('foreign_keys = OFF');
+  db.exec(`
+    CREATE TABLE students_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      class_code TEXT NOT NULL,
+      student_number TEXT NOT NULL,
+      name TEXT NOT NULL,
+      team TEXT CHECK(team IN ('A','B','C','D','E','F')),
+      session_token TEXT,
+      is_active BOOLEAN DEFAULT FALSE,
+      UNIQUE(class_code, student_number)
+    );
+    INSERT INTO students_new (id, class_code, student_number, name, team, session_token, is_active)
+    SELECT id, class_code, student_number, name, team, session_token, is_active FROM students;
+    DROP TABLE students;
+    ALTER TABLE students_new RENAME TO students;
+  `);
+  db.pragma('foreign_keys = ON');
+}
+
 for (const column of ['phase1_open', 'phase2_open', 'phase3_open']) {
   try {
     db.prepare(`ALTER TABLE teachers ADD COLUMN ${column} BOOLEAN DEFAULT FALSE`).run();
@@ -159,6 +208,11 @@ const teacherColumnDefaults = {
   activity1_revealed: "TEXT DEFAULT '{}'",
   activity2_step: 'INTEGER DEFAULT 1',
   activity2_revealed: "TEXT DEFAULT '{}'",
+  activity3_stage: "TEXT DEFAULT 'intro'",
+  activity3_intro_step: 'INTEGER DEFAULT 0',
+  activity3_hunt_index: 'INTEGER DEFAULT 0',
+  activity3_revealed: 'BOOLEAN DEFAULT FALSE',
+  activity3_team_count: 'INTEGER DEFAULT 2',
 };
 
 for (const [column, definition] of Object.entries(teacherColumnDefaults)) {
@@ -174,6 +228,20 @@ db.prepare("UPDATE teachers SET created_at = COALESCE(created_at, CURRENT_TIMEST
 for (const column of ['delivery_methods', 'feature_matches']) {
   try {
     db.prepare(`ALTER TABLE phase1_responses ADD COLUMN ${column} TEXT`).run();
+  } catch (error) {
+    if (!String(error.message).includes('duplicate column name')) throw error;
+  }
+}
+
+const phase3CommentColumnDefaults = {
+  post_id: 'TEXT',
+  nickname: 'TEXT',
+  comment_type: "TEXT DEFAULT 'mission'",
+};
+
+for (const [column, definition] of Object.entries(phase3CommentColumnDefaults)) {
+  try {
+    db.prepare(`ALTER TABLE phase3_comments ADD COLUMN ${column} ${definition}`).run();
   } catch (error) {
     if (!String(error.message).includes('duplicate column name')) throw error;
   }

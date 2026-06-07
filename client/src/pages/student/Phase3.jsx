@@ -1,20 +1,24 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CommentBox from '../../components/CommentBox.jsx';
-import JournalistProfile from '../../components/JournalistProfile.jsx';
-import OutletHeader from '../../components/OutletHeader.jsx';
-import PaddletWall from '../../components/PaddletWall.jsx';
-import VoteChart from '../../components/VoteChart.jsx';
 import { api } from '../../lib/session';
 import { socket } from '../../lib/socket';
 
+const stageLabels = {
+  intro: '대기',
+  manipulation: '여론 조작하기',
+  comment: '댓글 달기',
+  hunt: '조작 댓글 찾기',
+  results: '결과 확인',
+};
+
 export default function Phase3() {
   const navigate = useNavigate();
-  const [article, setArticle] = useState(null);
-  const [missionChecked, setMissionChecked] = useState(false);
-  const [board, setBoard] = useState(null);
-  const [journalist, setJournalist] = useState(null);
-  const [reflection, setReflection] = useState({ answer1: '', answer2: '', answer3: '' });
+  const [data, setData] = useState(null);
+  const [missionOpen, setMissionOpen] = useState(false);
+  const [missionComment, setMissionComment] = useState('');
+  const [normalDrafts, setNormalDrafts] = useState({});
+  const [commentPostTeam, setCommentPostTeam] = useState(null);
+  const [selected, setSelected] = useState([]);
 
   async function load() {
     const profile = await api('/api/student/profile');
@@ -22,126 +26,184 @@ export default function Phase3() {
       navigate('/student');
       return;
     }
-    const data = await api('/api/student/phase3/article');
-    setArticle(data.content);
-    const boardData = await api('/api/student/phase3/board');
-    setBoard(boardData);
+    const next = await api('/api/student/activity3/state');
+    setData(next);
+    setMissionComment(next.mission_comment?.content || '');
+    setSelected(next.current_selection || []);
   }
 
   useEffect(() => {
     load();
-    socket.on('new_comment', ({ phase, comment }) => phase === 3 && load());
-    socket.on('board_opened', load);
-    socket.on('board_revealed', load);
-    socket.on('vote_updated', (votes) => setBoard((prev) => prev ? { ...prev, votes } : prev));
-    socket.on('guess_submitted', (guess) => setBoard((prev) => prev ? { ...prev, guesses: [guess, ...prev.guesses] } : prev));
-    socket.on('guess_checked', load);
-    return () => {
-      socket.off('new_comment');
-      socket.off('board_opened');
-      socket.off('board_revealed');
-      socket.off('vote_updated');
-      socket.off('guess_submitted');
-      socket.off('guess_checked');
-    };
-  }, []);
+    socket.on('activity3_updated', load);
+    return () => socket.off('activity3_updated', load);
+  }, [navigate]);
 
-  async function submitComment(content) {
-    await api('/api/student/phase3/comment', { method: 'POST', body: JSON.stringify({ content }) });
+  async function submitMissionComment() {
+    await api('/api/student/activity3/mission-comment', { method: 'POST', body: JSON.stringify({ content: missionComment }) });
+    alert('댓글을 등록했습니다.');
+    load();
   }
 
-  async function vote(value) {
-    const result = await api('/api/student/phase3/vote', { method: 'POST', body: JSON.stringify({ vote: value }) });
-    setBoard({ ...board, votes: result.votes });
+  async function ready() {
+    await api('/api/student/activity3/ready', { method: 'POST', body: '{}' });
+    load();
   }
 
-  async function submitGuess(content) {
-    await api('/api/student/phase3/guess', { method: 'POST', body: JSON.stringify({ guess_text: content }) });
+  async function submitNormalComment(postId) {
+    const content = normalDrafts[postId] || data.my_normal_comments?.[postId] || '';
+    await api('/api/student/activity3/normal-comment', { method: 'POST', body: JSON.stringify({ post_id: postId, content }) });
+    alert('댓글을 등록했습니다.');
+    load();
   }
 
-  async function submitReflection(event) {
-    event.preventDefault();
-    await api('/api/student/phase3/reflection', { method: 'POST', body: JSON.stringify(reflection) });
-    alert('반성 서술을 제출했습니다.');
+  function toggleComment(commentId) {
+    setSelected((prev) => {
+      if (prev.includes(commentId)) return prev.filter((id) => id !== commentId);
+      if (prev.length >= 4) {
+        alert('최대 4개까지 선택할 수 있습니다.');
+        return prev;
+      }
+      return [...prev, commentId];
+    });
   }
 
-  if (!article || !board) return <div>불러오는 중...</div>;
-
-  if (!missionChecked) {
-    return (
-      <section className="mx-auto max-w-3xl rounded-lg border border-amber-300 bg-amber-50 p-6">
-        <p className="mb-2 text-sm font-bold text-amber-800">활동3 미션 카드</p>
-        <h2 className="text-2xl font-black">{article.outlet.name} 팀 미션</h2>
-        <pre className="my-5 whitespace-pre-wrap rounded-lg bg-white p-4 leading-8">{article.mission}</pre>
-        <button className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={() => setMissionChecked(true)}>확인</button>
-      </section>
-    );
+  async function submitSelection() {
+    await api('/api/student/activity3/selection', { method: 'POST', body: JSON.stringify({ post_id: data.hunt_post.team, selected_comment_ids: selected }) });
+    alert('선택을 완료했습니다.');
+    load();
   }
+
+  const visibleAvailablePosts = useMemo(() => {
+    if (!data) return [];
+    const offset = data.student?.id ? data.student.id % Math.max(1, data.available_posts.length) : 0;
+    return [...data.available_posts.slice(offset), ...data.available_posts.slice(0, offset)];
+  }, [data]);
+
+  if (!data) return <div>불러오는 중...</div>;
+  const stage = data.state.stage;
+  const readyEnabled = Boolean(data.mission_comment) && !data.ready;
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between"><h2 className="text-2xl font-black">활동3</h2><button className="rounded-md border px-3 py-2" onClick={() => navigate('/student')}>활동 목록</button></div>
-      <OutletHeader outlet={board.article.outlet} />
-      <article className="rounded-lg border border-stone-200 bg-white p-5">
-        <p className="text-sm text-stone-500">{board.article.article.date}</p>
-        <h3 className="mt-2 text-3xl font-black leading-tight">{board.article.article.headline}</h3>
-        <p className="mt-2 font-semibold text-stone-600">{board.article.article.subheadline}</p>
-        <p className="mt-4 leading-8">{board.article.article.body}</p>
-        <button className="mt-4 rounded-md border px-3 py-2" onClick={async () => setJournalist((await api('/api/student/phase3/journalist')).journalist)}>기자 프로필 보기</button>
-      </article>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-stone-500">활동3 · {stageLabels[stage]}</p>
+          <h2 className="text-3xl font-black">여론전쟁</h2>
+        </div>
+        <button className="rounded-md border px-3 py-2" onClick={() => navigate('/student')}>활동 목록</button>
+      </header>
 
-      {!board.state.board_open && (
-        <section className="grid gap-4 md:grid-cols-[1fr_1fr]">
-          <CommentBox onSubmit={submitComment} placeholder="익명 댓글을 작성하세요" button="익명 등록" />
-          <CommentList comments={board.comments} revealed={board.state.revealed} />
+      {stage === 'intro' && (
+        <section className="rounded-lg border border-stone-200 bg-white p-6">
+          <h3 className="text-2xl font-black">선생님이 활동을 시작하면 게시글이 열립니다.</h3>
+          <p className="mt-3 leading-7 text-stone-600">이번 활동에서는 댓글이 여론을 어떻게 움직이는지 직접 체험합니다.</p>
         </section>
       )}
 
-      {board.state.board_open && (
+      {stage === 'manipulation' && (
+        <section className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <PostCard post={data.team_post} label={`${data.team}조 게시글`} />
+          <aside className="space-y-4">
+            <button className="w-full animate-pulse rounded-lg bg-amber-300 px-4 py-4 text-xl font-black text-stone-950" onClick={() => setMissionOpen(!missionOpen)}>누군가에게 온 쪽지</button>
+            {missionOpen && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="font-black">{data.team_post.missionTitle}</h3>
+                <p className="mt-3 whitespace-pre-wrap leading-7">{data.team_post.mission}</p>
+              </div>
+            )}
+            <textarea className="min-h-32 w-full rounded-md border p-3" placeholder="미션에 맞춰 조작 댓글을 작성하세요." value={missionComment} onChange={(event) => setMissionComment(event.target.value)} />
+            <button className="w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitMissionComment}>댓글 등록</button>
+            <button disabled={!readyEnabled} className="w-full rounded-md border px-4 py-3 font-bold disabled:text-stone-300" onClick={ready}>준비완료</button>
+            {data.ready && <div className="rounded-md bg-emerald-50 p-3 font-bold text-emerald-700">준비완료 상태입니다.</div>}
+          </aside>
+        </section>
+      )}
+
+      {stage === 'comment' && (
         <section className="space-y-4">
           <div className="rounded-lg border border-stone-200 bg-white p-4">
-            <h3 className="mb-3 text-lg font-black">상대 팀 기사와 댓글</h3>
-            <CommentList comments={board.comments} revealed={board.state.revealed} />
+            <h3 className="text-xl font-black">다른 모둠 게시물에 댓글을 다세요.</h3>
+            <p className="mt-2 text-sm font-bold text-stone-500">찬성 또는 반대 입장이 드러나야 합니다. 내가 조작한 게시물은 목록에 나오지 않습니다.</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-stone-200 bg-white p-4">
-              <h3 className="mb-3 text-lg font-black">이 기사는?</h3>
-              <div className="flex flex-wrap gap-2">
-                <button className="rounded-md border px-3 py-2" onClick={() => vote('trust')}>믿을만함</button>
-                <button className="rounded-md border px-3 py-2" onClick={() => vote('suspicious')}>이상함</button>
-                <button className="rounded-md border px-3 py-2" onClick={() => vote('unsure')}>모르겠음</button>
-              </div>
-              <div className="mt-4"><VoteChart votes={board.votes} /></div>
+          {!commentPostTeam && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {visibleAvailablePosts.map((post, index) => (
+                <button key={post.team} className="rounded-lg border border-stone-200 bg-white p-5 text-left" onClick={() => setCommentPostTeam(post.team)}>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xl font-black">게시물 {index + 1}</h4>
+                    {data.my_normal_comments?.[post.team] && <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700">댓글달기 완료</span>}
+                  </div>
+                  <p className="mt-3 text-sm font-bold text-stone-500">클릭해서 게시물 보기</p>
+                </button>
+              ))}
             </div>
-            <CommentBox onSubmit={submitGuess} placeholder="누가 어떤 의도로 댓글을 달았을지 추리하세요" button="담벼락 등록" />
-          </div>
-          <PaddletWall guesses={board.guesses} />
+          )}
+          {commentPostTeam && (() => {
+            const post = visibleAvailablePosts.find((item) => item.team === commentPostTeam);
+            const value = normalDrafts[post.team] ?? data.my_normal_comments?.[post.team] ?? '';
+            return (
+              <article className="rounded-lg border border-stone-200 bg-white p-4">
+                <button className="mb-3 rounded-md border px-3 py-2 font-bold" onClick={() => setCommentPostTeam(null)}>목록 보기</button>
+                <PostCard post={post} compact />
+                <textarea className="mt-3 min-h-24 w-full rounded-md border p-3" placeholder="찬성 또는 반대 입장을 담아 댓글을 쓰세요." value={value} onChange={(event) => setNormalDrafts({ ...normalDrafts, [post.team]: event.target.value })} />
+                <button className="mt-2 rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={() => submitNormalComment(post.team)}>{data.my_normal_comments?.[post.team] ? '수정하기' : '댓글 등록'}</button>
+              </article>
+            );
+          })()}
         </section>
       )}
 
-      {board.state.revealed && (
-        <form onSubmit={submitReflection} className="rounded-lg border border-emerald-300 bg-emerald-50 p-4">
-          <h3 className="mb-3 text-lg font-black">정체 공개 후 반성</h3>
-          {['answer1', 'answer2', 'answer3'].map((key, index) => (
-            <textarea key={key} className="mb-3 min-h-20 w-full rounded-md border p-3" placeholder={`${index + 1}. 미디어를 볼 때 조심해야 할 점`} value={reflection[key]} onChange={(event) => setReflection({ ...reflection, [key]: event.target.value })} />
-          ))}
-          <button className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white">제출</button>
-        </form>
+      {stage === 'hunt' && (
+        <section className="space-y-4">
+          <PostCard post={data.hunt_post} label="선생님이 공개한 게시글" />
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 font-bold leading-7">
+            우리 모둠이 조작한 게시글에선 조작된 댓글을 맞혀도 점수가 없습니다. 친구들이 의심하지 않도록 조작 댓글과 조작이 아닌 댓글을 섞어서 선택하세요.
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {data.hunt_comments.map((comment) => (
+              <button key={comment.id} className={`rounded-lg border bg-white p-4 text-left leading-7 ${selected.includes(comment.id) ? 'border-emerald-500 ring-2 ring-emerald-300' : 'border-stone-200'}`} onClick={() => toggleComment(comment.id)}>
+                <div className="mb-1 text-sm font-black text-stone-500">{comment.nickname || '익명'}</div>
+                {comment.content}
+              </button>
+            ))}
+          </div>
+          <button className="rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitSelection}>선택완료 ({selected.length}/3~4)</button>
+        </section>
       )}
-      <JournalistProfile journalist={journalist} onClose={() => setJournalist(null)} />
+
+      {stage === 'results' && (
+        <section className="space-y-4">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
+            <p className="text-sm font-bold text-emerald-700">내 총점</p>
+            <h3 className="text-4xl font-black text-emerald-900">{data.score}점</h3>
+          </div>
+          {data.posts.map((post) => (
+            <article key={post.team} className="rounded-lg border border-stone-200 bg-white p-4">
+              <h4 className="mb-3 text-xl font-black">{post.team}조 · {post.title}</h4>
+              <div className="grid gap-3 md:grid-cols-2">
+                {data.all_comments.filter((comment) => comment.post_id === post.team).map((comment) => (
+                  <div key={comment.id} className={`rounded-lg border p-4 ${comment.is_manipulated ? 'border-rose-500 bg-rose-50' : 'border-stone-200'} ${comment.selected_by_me ? 'ring-2 ring-emerald-400' : ''}`}>
+                    <div className="mb-1 text-sm font-black text-stone-500">{comment.nickname || '익명'} {comment.is_manipulated ? '· 조작 댓글' : ''}</div>
+                    <p className="leading-7">{comment.content}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
 
-function CommentList({ comments = [], revealed }) {
+function PostCard({ post, label, compact = false }) {
   return (
-    <div className="space-y-2">
-      {comments.map((comment) => (
-        <div key={comment.id} className="rounded border border-stone-200 bg-white p-3">
-          <div className="mb-1 text-xs font-bold text-stone-500">{revealed ? `${comment.team}조` : '익명 시민'}</div>
-          <p>{comment.content}</p>
-        </div>
-      ))}
-    </div>
+    <article className={`rounded-lg border border-stone-200 bg-white p-5 shadow-sm ${compact ? '' : 'min-h-80'}`}>
+      {label && <p className="mb-2 text-sm font-bold text-amber-700">{label}</p>}
+      <div className="mb-2 text-sm font-bold text-stone-500">{post.mediaType} · {post.format} · {post.author}</div>
+      <h3 className={`${compact ? 'text-xl' : 'text-3xl'} font-black leading-tight`}>{post.title}</h3>
+      <p className="mt-2 text-sm font-bold text-stone-500">{post.meta}</p>
+      <p className="mt-4 whitespace-pre-wrap leading-8 text-stone-800">{post.body}</p>
+    </article>
   );
 }

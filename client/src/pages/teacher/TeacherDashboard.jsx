@@ -20,14 +20,16 @@ export default function TeacherDashboard() {
   const [p2, setP2] = useState({ comments: [], classifications: [] });
   const [p3, setP3] = useState({ comments: [], votes: [], guesses: [], reflections: [] });
   const [editingStudents, setEditingStudents] = useState({});
+  const [activity3TeamCount, setActivity3TeamCount] = useState(2);
 
   async function refresh() {
-    const [{ phase: currentPhase, open_phases }, studentData, phase1, phase2, phase3] = await Promise.all([
+    const [{ phase: currentPhase, open_phases }, studentData, phase1, phase2, phase3, activity3] = await Promise.all([
       api(`/api/auth/phase?class_code=${encodeURIComponent(classCode)}`),
       api('/api/teacher/students'),
       api('/api/teacher/phase1'),
       api('/api/teacher/phase2'),
       api('/api/teacher/phase3'),
+      api('/api/teacher/activity3/state'),
     ]);
     setPhase(currentPhase);
     setOpenPhases(open_phases);
@@ -35,6 +37,7 @@ export default function TeacherDashboard() {
     setP1(phase1.responses);
     setP2(phase2);
     setP3(phase3);
+    setActivity3TeamCount(activity3.state.team_count);
   }
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function TeacherDashboard() {
     if (!draft) return;
     const result = await api('/api/teacher/update-student', {
       method: 'POST',
-      body: JSON.stringify({ student_id: studentId, student_number: draft.student_number, name: draft.name }),
+      body: JSON.stringify({ student_id: studentId, student_number: draft.student_number, name: draft.name, team: draft.team }),
     });
     setStudents(result.students);
     setEditingStudents((prev) => {
@@ -92,6 +95,21 @@ export default function TeacherDashboard() {
     window.location.href = '/teacher/activity2-board';
   }
 
+  function openActivity3Board() {
+    const board = window.open('/teacher/activity3-board', 'activity3-board', 'width=1400,height=900');
+    if (board) {
+      board.focus();
+      return;
+    }
+    window.location.href = '/teacher/activity3-board';
+  }
+
+  async function setTeamCount(count) {
+    const result = await api('/api/teacher/activity3/team-count', { method: 'POST', body: JSON.stringify({ count }) });
+    setActivity3TeamCount(result.state.team_count);
+    refresh();
+  }
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-[1fr_320px]">
@@ -122,6 +140,11 @@ export default function TeacherDashboard() {
                     활동 대시보드
                   </button>
                 )}
+                {item === 3 && (
+                  <button type="button" className="mb-2 w-full rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-900" onClick={openActivity3Board}>
+                    활동 대시보드
+                  </button>
+                )}
                 <button
                   className={`w-full rounded-md px-3 py-2 text-sm font-bold ${openPhases[item] ? 'border border-stone-300 text-stone-700' : 'bg-stone-950 text-white'}`}
                   onClick={() => togglePhase(item, !openPhases[item])}
@@ -134,9 +157,13 @@ export default function TeacherDashboard() {
           <div className="flex flex-wrap gap-2">
             {openPhases[3] && (
               <>
-                <button className="rounded-md border px-3 py-2" onClick={assignTeams}>A/B조 자동 배정</button>
-                <button className="rounded-md border px-3 py-2" onClick={() => api('/api/teacher/open-board', { method: 'POST', body: '{}' })}>게시판 교차 공개</button>
-                <button className="rounded-md border px-3 py-2" onClick={() => api('/api/teacher/reveal', { method: 'POST', body: '{}' })}>정체 공개</button>
+                <label className="flex items-center gap-2 rounded-md border px-3 py-2">
+                  <span className="text-sm font-bold">모둠 수</span>
+                  <select className="rounded border px-2 py-1" value={activity3TeamCount} onChange={(event) => setTeamCount(Number(event.target.value))}>
+                    {[2, 3, 4, 5, 6].map((count) => <option key={count} value={count}>{count}개</option>)}
+                  </select>
+                </label>
+                <button className="rounded-md border px-3 py-2" onClick={() => setTeamCount(activity3TeamCount)}>모둠 자동 배정</button>
               </>
             )}
             <button className="rounded-md border px-3 py-2" onClick={refresh}>새로고침</button>
@@ -176,7 +203,18 @@ export default function TeacherDashboard() {
                         />
                       ) : student.name}
                     </td>
-                    <td>{student.team || '-'}</td><td>{student.is_active ? '접속' : '-'}</td>
+                    <td>
+                      {draft ? (
+                        <select
+                          className="rounded border border-stone-300 px-2 py-1"
+                          value={draft.team || ''}
+                          onChange={(event) => setEditingStudents({ ...editingStudents, [student.id]: { ...draft, team: event.target.value } })}
+                        >
+                          <option value="">-</option>
+                          {['A', 'B', 'C', 'D', 'E', 'F'].map((team) => <option key={team} value={team}>{team}</option>)}
+                        </select>
+                      ) : student.team || '-'}
+                    </td><td>{student.is_active ? '접속' : '-'}</td>
                     <td>{student.phase1_done ? '제출' : '-'}</td><td>{student.phase2_done ? '참여' : '-'}</td><td>{student.phase3_done ? '제출' : '-'}</td>
                     <td className="whitespace-nowrap">
                       {draft ? (
@@ -189,7 +227,7 @@ export default function TeacherDashboard() {
                           })}>취소</button>
                         </div>
                       ) : (
-                        <button className="rounded border px-2 py-1" onClick={() => setEditingStudents({ ...editingStudents, [student.id]: { student_number: student.student_number, name: student.name } })}>수정</button>
+                        <button className="rounded border px-2 py-1" onClick={() => setEditingStudents({ ...editingStudents, [student.id]: { student_number: student.student_number, name: student.name, team: student.team || '' } })}>수정</button>
                       )}
                     </td>
                   </tr>

@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, publicStudent } = require('../db/init');
 const phase2 = require('../content/phase2');
+const phase3 = require('../content/phase3');
 
 const router = express.Router();
 
@@ -64,6 +65,77 @@ function activity2PostByStep(step) {
   return phase2[Math.max(0, Math.min(phase2.length - 1, step - 1))];
 }
 
+function phase3State(classCode) {
+  const row = db.prepare('SELECT activity3_stage, activity3_intro_step, activity3_hunt_index, activity3_revealed, activity3_team_count FROM teachers WHERE class_code = ?').get(classCode);
+  return {
+    stage: row?.activity3_stage || 'intro',
+    intro_step: row?.activity3_intro_step || 0,
+    hunt_index: row?.activity3_hunt_index || 0,
+    revealed: Boolean(row?.activity3_revealed),
+    team_count: row?.activity3_team_count || 2,
+  };
+}
+
+function phase3Posts(teamCount) {
+  return phase3.slice(0, Math.max(2, Math.min(6, teamCount)));
+}
+
+function parseSelection(value) {
+  try {
+    return value ? JSON.parse(value) : [];
+  } catch {
+    return [];
+  }
+}
+
+function phase3Payload(classCode) {
+  const state = phase3State(classCode);
+  const posts = phase3Posts(state.team_count);
+  const students = db.prepare('SELECT id, student_number, name, team FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(classCode);
+  const missionRows = db.prepare("SELECT student_id, team, post_id FROM phase3_comments WHERE comment_type = 'mission' AND student_id IN (SELECT id FROM students WHERE class_code = ?)").all(classCode);
+  const readyRows = db.prepare('SELECT student_id, team FROM phase3_team_ready WHERE student_id IN (SELECT id FROM students WHERE class_code = ?)').all(classCode);
+  const normalRows = db.prepare("SELECT student_id, COUNT(DISTINCT post_id) AS count FROM phase3_comments WHERE comment_type = 'normal' AND student_id IN (SELECT id FROM students WHERE class_code = ?) GROUP BY student_id").all(classCode);
+  const selectionRows = db.prepare('SELECT student_id, post_id FROM phase3_selections WHERE student_id IN (SELECT id FROM students WHERE class_code = ?)').all(classCode);
+  const missionByStudent = new Set(missionRows.map((row) => row.student_id));
+  const readyByStudent = new Set(readyRows.map((row) => row.student_id));
+  const normalCounts = Object.fromEntries(normalRows.map((row) => [row.student_id, row.count]));
+  const selectionByStudent = new Set(selectionRows.filter((row) => row.post_id === posts[state.hunt_index]?.team).map((row) => row.student_id));
+  const team_status = posts.map((post) => {
+    const members = students.filter((student) => student.team === post.team);
+    return {
+      team: post.team,
+      title: post.title,
+      members: members.length,
+      commented: members.filter((student) => missionByStudent.has(student.id)).length,
+      ready: members.filter((student) => readyByStudent.has(student.id)).length,
+      complete: members.length > 0 && members.every((student) => readyByStudent.has(student.id)),
+    };
+  });
+  const comment_progress = students.map((student) => ({
+    id: student.id,
+    student_number: student.student_number,
+    name: student.name,
+    team: student.team,
+    count: normalCounts[student.id] || 0,
+    required: Math.max(0, posts.length - 1),
+  }));
+  const hunt_post = posts[state.hunt_index] || posts[0];
+  const hunt_comments = hunt_post ? db.prepare(`
+    SELECT p.id, p.post_id, p.team, p.nickname, p.comment_type, p.content, s.student_number, s.name
+    FROM phase3_comments p JOIN students s ON s.id = p.student_id
+    WHERE s.class_code = ? AND p.post_id = ?
+    ORDER BY p.created_at ASC
+  `).all(classCode, hunt_post.team) : [];
+  const hunt_status = students.map((student) => ({
+    id: student.id,
+    student_number: student.student_number,
+    name: student.name,
+    team: student.team,
+    done: selectionByStudent.has(student.id),
+  }));
+  return { state, posts, students, team_status, comment_progress, hunt_post, hunt_comments, hunt_status };
+}
+
 router.use(requireTeacher);
 
 router.post('/upload-roster', (req, res) => {
@@ -91,6 +163,8 @@ router.post('/upload-roster', (req, res) => {
         db.prepare(`DELETE FROM phase2_comments WHERE student_id IN (${placeholders})`).run(...ids);
         db.prepare(`DELETE FROM activity2_comment_revisions WHERE student_id IN (${placeholders})`).run(...ids);
         db.prepare(`DELETE FROM phase3_comments WHERE student_id IN (${placeholders})`).run(...ids);
+        db.prepare(`DELETE FROM phase3_selections WHERE student_id IN (${placeholders})`).run(...ids);
+        db.prepare(`DELETE FROM phase3_team_ready WHERE student_id IN (${placeholders})`).run(...ids);
         db.prepare(`DELETE FROM phase3_votes WHERE student_id IN (${placeholders})`).run(...ids);
         db.prepare(`DELETE FROM phase3_guesses WHERE student_id IN (${placeholders})`).run(...ids);
         db.prepare(`DELETE FROM phase3_reflections WHERE student_id IN (${placeholders})`).run(...ids);
@@ -114,7 +188,9 @@ router.post('/update-student', (req, res) => {
   if (!studentId || !studentNumber || !name) return res.status(400).json({ error: '번호와 이름을 입력해주세요' });
   const duplicate = db.prepare('SELECT id FROM students WHERE class_code = ? AND student_number = ? AND id != ?').get(req.class_code, studentNumber, studentId);
   if (duplicate) return res.status(409).json({ error: '이미 같은 번호가 있습니다' });
-  db.prepare('UPDATE students SET student_number = ?, name = ? WHERE id = ? AND class_code = ?').run(studentNumber, name, studentId, req.class_code);
+  const team = req.body.team ? String(req.body.team) : null;
+  if (team && !['A', 'B', 'C', 'D', 'E', 'F'].includes(team)) return res.status(400).json({ error: '모둠을 확인해주세요' });
+  db.prepare('UPDATE students SET student_number = ?, name = ?, team = COALESCE(?, team) WHERE id = ? AND class_code = ?').run(studentNumber, name, team, studentId, req.class_code);
   const students = db.prepare('SELECT * FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(req.class_code).map(publicStudent);
   res.json({ ok: true, students });
 });
@@ -270,12 +346,61 @@ router.post('/assign-teams', (req, res) => {
   res.json({ ok: true, students: db.prepare('SELECT * FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(req.class_code).map(publicStudent) });
 });
 
+router.post('/activity3/team-count', (req, res) => {
+  const count = Math.max(2, Math.min(6, Number(req.body.count) || 2));
+  const teams = ['A', 'B', 'C', 'D', 'E', 'F'].slice(0, count);
+  const students = db.prepare('SELECT id FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(req.class_code);
+  const tx = db.transaction(() => {
+    db.prepare('UPDATE teachers SET activity3_team_count = ? WHERE class_code = ?').run(count, req.class_code);
+    students.forEach((student, index) => db.prepare('UPDATE students SET team = ? WHERE id = ?').run(teams[index % teams.length], student.id));
+  });
+  tx();
+  getIo(req).emit('activity3_updated');
+  res.json({ ok: true, ...phase3Payload(req.class_code) });
+});
+
+router.get('/activity3/state', (req, res) => {
+  res.json(phase3Payload(req.class_code));
+});
+
+router.post('/activity3/intro', (req, res) => {
+  const direction = String(req.body.direction || 'next');
+  const current = phase3State(req.class_code).intro_step;
+  const introStep = direction === 'previous' ? Math.max(0, current - 1) : Math.min(3, current + 1);
+  db.prepare('UPDATE teachers SET activity3_stage = ?, activity3_intro_step = ? WHERE class_code = ?').run('intro', introStep, req.class_code);
+  getIo(req).emit('activity3_updated');
+  res.json(phase3Payload(req.class_code));
+});
+
+router.post('/activity3/stage', (req, res) => {
+  const stage = String(req.body.stage || '');
+  if (!['intro', 'manipulation', 'comment', 'hunt', 'results'].includes(stage)) return res.status(400).json({ error: '활동 단계를 확인해주세요' });
+  db.prepare('UPDATE teachers SET activity3_stage = ? WHERE class_code = ?').run(stage, req.class_code);
+  getIo(req).emit('activity3_updated');
+  res.json(phase3Payload(req.class_code));
+});
+
+router.post('/activity3/hunt-move', (req, res) => {
+  const direction = String(req.body.direction || 'next');
+  const state = phase3State(req.class_code);
+  const nextIndex = direction === 'previous' ? Math.max(0, state.hunt_index - 1) : Math.min(state.team_count - 1, state.hunt_index + 1);
+  db.prepare('UPDATE teachers SET activity3_stage = ?, activity3_hunt_index = ? WHERE class_code = ?').run('hunt', nextIndex, req.class_code);
+  getIo(req).emit('activity3_updated');
+  res.json(phase3Payload(req.class_code));
+});
+
+router.post('/activity3/reveal', (req, res) => {
+  db.prepare('UPDATE teachers SET activity3_revealed = TRUE, activity3_stage = ? WHERE class_code = ?').run('results', req.class_code);
+  getIo(req).emit('activity3_updated');
+  res.json(phase3Payload(req.class_code));
+});
+
 router.get('/students', (req, res) => {
   const students = db.prepare(`
     SELECT s.*,
       EXISTS(SELECT 1 FROM phase1_responses p WHERE p.student_id = s.id) AS phase1_done,
       EXISTS(SELECT 1 FROM activity2_comment_revisions p WHERE p.student_id = s.id) AS phase2_done,
-      EXISTS(SELECT 1 FROM phase3_reflections p WHERE p.student_id = s.id) AS phase3_done
+      EXISTS(SELECT 1 FROM phase3_selections p WHERE p.student_id = s.id) AS phase3_done
     FROM students s
     WHERE s.class_code = ?
     ORDER BY CAST(s.student_number AS INTEGER), s.student_number
@@ -338,7 +463,12 @@ router.get('/phase3', (req, res) => {
     FROM phase3_reflections p JOIN students s ON s.id = p.student_id
     WHERE s.class_code = ?
   `).all(req.class_code);
-  res.json({ comments, votes, guesses, reflections });
+  const selections = db.prepare(`
+    SELECT p.*, s.student_number, s.name
+    FROM phase3_selections p JOIN students s ON s.id = p.student_id
+    WHERE s.class_code = ?
+  `).all(req.class_code).map((row) => ({ ...row, selected_comment_ids: parseSelection(row.selected_comment_ids) }));
+  res.json({ comments, votes, guesses, reflections, selections });
 });
 
 router.post('/open-board', (req, res) => {

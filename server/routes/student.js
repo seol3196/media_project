@@ -75,6 +75,35 @@ function activity2PostByStep(step) {
   return phase2[Math.max(0, Math.min(phase2.length - 1, step - 1))];
 }
 
+const nicknames = ['별빛고래', '초록연필', '달리는구름', '민트라디오', '노란우산', '조용한파도', '하늘버튼', '밤산책'];
+
+function phase3State(classCode) {
+  const row = db.prepare('SELECT activity3_stage, activity3_intro_step, activity3_hunt_index, activity3_revealed, activity3_team_count FROM teachers WHERE class_code = ?').get(classCode);
+  return {
+    stage: row?.activity3_stage || 'intro',
+    intro_step: row?.activity3_intro_step || 0,
+    hunt_index: row?.activity3_hunt_index || 0,
+    revealed: Boolean(row?.activity3_revealed),
+    team_count: row?.activity3_team_count || 2,
+  };
+}
+
+function phase3Posts(teamCount) {
+  return phase3.slice(0, Math.max(2, Math.min(6, teamCount)));
+}
+
+function phase3PostByTeam(team, teamCount) {
+  return phase3Posts(teamCount).find((post) => post.team === team) || phase3Posts(teamCount)[0];
+}
+
+function parseList(value) {
+  try {
+    return value ? JSON.parse(value) : [];
+  } catch {
+    return [];
+  }
+}
+
 router.use(requireStudent);
 
 router.get('/profile', (req, res) => {
@@ -271,6 +300,130 @@ router.post('/phase2/comment', (req, res) => {
   `).get(info.lastInsertRowid);
   getIo(req).emit('new_comment', { phase: 2, comment });
   res.json({ comment });
+});
+
+router.get('/activity3/state', (req, res) => {
+  const state = phase3State(req.student.class_code);
+  const posts = phase3Posts(state.team_count);
+  const team = req.student.team || posts[0].team;
+  const teamPost = phase3PostByTeam(team, state.team_count);
+  const missionComment = db.prepare("SELECT * FROM phase3_comments WHERE student_id = ? AND post_id = ? AND comment_type = 'mission'").get(req.student.id, teamPost.team);
+  const ready = db.prepare('SELECT id FROM phase3_team_ready WHERE student_id = ?').get(req.student.id);
+  const myNormalComments = db.prepare("SELECT post_id, content FROM phase3_comments WHERE student_id = ? AND comment_type = 'normal'").all(req.student.id);
+  const huntPost = posts[state.hunt_index] || posts[0];
+  const huntComments = db.prepare(`
+    SELECT p.id, p.post_id, p.team, p.nickname, p.comment_type, p.content, s.student_number, s.name
+    FROM phase3_comments p JOIN students s ON s.id = p.student_id
+    WHERE s.class_code = ? AND p.post_id = ?
+    ORDER BY p.created_at ASC
+  `).all(req.student.class_code, huntPost.team);
+  const selection = db.prepare('SELECT selected_comment_ids FROM phase3_selections WHERE student_id = ? AND post_id = ?').get(req.student.id, huntPost.team);
+  const selections = db.prepare('SELECT post_id, selected_comment_ids FROM phase3_selections WHERE student_id = ?').all(req.student.id);
+  const selectionMap = Object.fromEntries(selections.map((row) => [row.post_id, parseList(row.selected_comment_ids)]));
+  const allComments = posts.flatMap((post) => db.prepare(`
+    SELECT p.id, p.post_id, p.team, p.nickname, p.comment_type, p.content, s.student_number, s.name
+    FROM phase3_comments p JOIN students s ON s.id = p.student_id
+    WHERE s.class_code = ? AND p.post_id = ?
+    ORDER BY p.created_at ASC
+  `).all(req.student.class_code, post.team).map((comment) => ({
+    ...comment,
+    is_manipulated: state.revealed ? comment.comment_type === 'mission' : undefined,
+    selected_by_me: (selectionMap[post.team] || []).includes(comment.id),
+  })));
+  const score = posts.reduce((total, post) => {
+    if (post.team === team) return total;
+    const selectedIds = selectionMap[post.team] || [];
+    const comments = allComments.filter((comment) => comment.post_id === post.team);
+    return total + selectedIds.reduce((sum, id) => {
+      const selectedComment = comments.find((comment) => comment.id === id);
+      if (!selectedComment) return sum;
+      return sum + (selectedComment.comment_type === 'mission' ? 1 : -1);
+    }, 0);
+  }, 0);
+  res.json({
+    state,
+    student: publicStudent(req.student),
+    team,
+    posts,
+    team_post: teamPost,
+    mission_comment: missionComment || null,
+    ready: Boolean(ready),
+    available_posts: posts.filter((post) => post.team !== team),
+    my_normal_comments: Object.fromEntries(myNormalComments.map((row) => [row.post_id, row.content])),
+    hunt_post: huntPost,
+    hunt_comments: huntComments.map((comment) => ({
+      ...comment,
+      is_manipulated: state.revealed ? comment.comment_type === 'mission' : undefined,
+    })),
+    current_selection: selection ? parseList(selection.selected_comment_ids) : [],
+    selections: selectionMap,
+    all_comments: allComments,
+    score,
+  });
+});
+
+router.post('/activity3/mission-comment', (req, res) => {
+  const state = phase3State(req.student.class_code);
+  if (state.stage !== 'manipulation') return res.status(409).json({ error: '아직 조작 댓글을 달 수 없습니다' });
+  const posts = phase3Posts(state.team_count);
+  const team = req.student.team || posts[0].team;
+  const post = phase3PostByTeam(team, state.team_count);
+  const content = String(req.body.content || '').trim();
+  if (!content) return res.status(400).json({ error: '댓글을 입력해주세요' });
+  const nickname = nicknames[(req.student.id + content.length) % nicknames.length];
+  db.prepare("DELETE FROM phase3_comments WHERE student_id = ? AND post_id = ? AND comment_type = 'mission'").run(req.student.id, post.team);
+  db.prepare(`
+    INSERT INTO phase3_comments (student_id, team, post_id, nickname, comment_type, content)
+    VALUES (?, ?, ?, ?, 'mission', ?)
+  `).run(req.student.id, team, post.team, nickname, content);
+  getIo(req).emit('activity3_updated');
+  res.json({ ok: true });
+});
+
+router.post('/activity3/ready', (req, res) => {
+  const state = phase3State(req.student.class_code);
+  const posts = phase3Posts(state.team_count);
+  const team = req.student.team || posts[0].team;
+  db.prepare('INSERT INTO phase3_team_ready (student_id, team, ready_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(student_id) DO UPDATE SET team = excluded.team, ready_at = CURRENT_TIMESTAMP').run(req.student.id, team);
+  getIo(req).emit('activity3_updated');
+  res.json({ ok: true });
+});
+
+router.post('/activity3/normal-comment', (req, res) => {
+  const state = phase3State(req.student.class_code);
+  if (state.stage !== 'comment') return res.status(409).json({ error: '아직 댓글 달기 단계가 아닙니다' });
+  const posts = phase3Posts(state.team_count);
+  const team = req.student.team || posts[0].team;
+  const postId = String(req.body.post_id || '');
+  const post = posts.find((item) => item.team === postId);
+  const content = String(req.body.content || '').trim();
+  if (!post || post.team === team) return res.status(400).json({ error: '댓글을 달 수 없는 게시물입니다' });
+  if (!content) return res.status(400).json({ error: '댓글을 입력해주세요' });
+  const nickname = nicknames[(req.student.id + postId.charCodeAt(0)) % nicknames.length];
+  db.prepare("DELETE FROM phase3_comments WHERE student_id = ? AND post_id = ? AND comment_type = 'normal'").run(req.student.id, post.team);
+  db.prepare(`
+    INSERT INTO phase3_comments (student_id, team, post_id, nickname, comment_type, content)
+    VALUES (?, ?, ?, ?, 'normal', ?)
+  `).run(req.student.id, team, post.team, nickname, content);
+  getIo(req).emit('activity3_updated');
+  res.json({ ok: true });
+});
+
+router.post('/activity3/selection', (req, res) => {
+  const state = phase3State(req.student.class_code);
+  if (state.stage !== 'hunt') return res.status(409).json({ error: '아직 조작 댓글 찾기 단계가 아닙니다' });
+  const posts = phase3Posts(state.team_count);
+  const post = posts[state.hunt_index] || posts[0];
+  const selected = Array.isArray(req.body.selected_comment_ids) ? req.body.selected_comment_ids.map(Number).filter(Boolean) : [];
+  if (String(req.body.post_id || '') !== post.team) return res.status(409).json({ error: '현재 게시물이 아닙니다' });
+  if (selected.length < 3 || selected.length > 4) return res.status(400).json({ error: '댓글은 3개 또는 4개를 선택해주세요' });
+  db.prepare(`
+    INSERT INTO phase3_selections (student_id, post_id, selected_comment_ids, submitted_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(student_id, post_id) DO UPDATE SET selected_comment_ids = excluded.selected_comment_ids, submitted_at = CURRENT_TIMESTAMP
+  `).run(req.student.id, post.team, JSON.stringify(selected));
+  getIo(req).emit('activity3_updated');
+  res.json({ ok: true });
 });
 
 router.get('/phase3/article', (req, res) => {

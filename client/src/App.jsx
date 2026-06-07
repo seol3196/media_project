@@ -8,6 +8,7 @@ import TeacherActivity1Padlet from './pages/teacher/TeacherActivity1Padlet.jsx';
 import TeacherActivity1SNS from './pages/teacher/TeacherActivity1SNS.jsx';
 import TeacherActivity2Board from './pages/teacher/TeacherActivity2Board.jsx';
 import TeacherActivity2Revisions from './pages/teacher/TeacherActivity2Revisions.jsx';
+import TeacherActivity3Board from './pages/teacher/TeacherActivity3Board.jsx';
 import StudentDashboard from './pages/student/StudentDashboard.jsx';
 import Phase1 from './pages/student/Phase1.jsx';
 import Activity1SNS from './pages/student/Activity1SNS.jsx';
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="/teacher/activity1-sns" element={<Protected role="teacher"><TeacherActivity1SNS /></Protected>} />
       <Route path="/teacher/activity2-board" element={<Protected role="teacher"><TeacherActivity2Board /></Protected>} />
       <Route path="/teacher/activity2-revisions" element={<Protected role="teacher"><TeacherActivity2Revisions /></Protected>} />
+      <Route path="/teacher/activity3-board" element={<Protected role="teacher"><TeacherActivity3Board /></Protected>} />
       <Route path="/student" element={<Protected role="student"><StudentDashboard /></Protected>} />
       <Route path="/student/phase1" element={<Protected role="student"><Phase1 /></Protected>} />
       <Route path="/student/activity1-sns" element={<Protected role="student"><Activity1SNS /></Protected>} />
