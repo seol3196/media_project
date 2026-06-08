@@ -136,6 +136,70 @@ function phase3Payload(classCode) {
   return { state, posts, students, team_status, comment_progress, hunt_post, hunt_comments, hunt_status };
 }
 
+function resetActivityData(classCode, phase) {
+  const ids = db.prepare('SELECT id FROM students WHERE class_code = ?').all(classCode).map((row) => row.id);
+  const placeholders = ids.map(() => '?').join(',');
+  if (phase === 1) {
+    if (ids.length > 0) {
+      db.prepare(`DELETE FROM activity1_sns_likes WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM activity1_sns_likes WHERE post_id IN (SELECT id FROM activity1_sns_posts WHERE student_id IN (${placeholders}))`).run(...ids);
+      db.prepare(`DELETE FROM activity1_sns_posts WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM activity1_answers WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase1_responses WHERE student_id IN (${placeholders})`).run(...ids);
+    }
+    db.prepare("UPDATE teachers SET activity1_step = 1, activity1_revealed = '{}' WHERE class_code = ?").run(classCode);
+  }
+  if (phase === 2) {
+    if (ids.length > 0) {
+      db.prepare(`DELETE FROM activity2_comment_revisions WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase2_classifications WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase2_comments WHERE student_id IN (${placeholders})`).run(...ids);
+    }
+    db.prepare("UPDATE teachers SET activity2_step = 1, activity2_revealed = '{}' WHERE class_code = ?").run(classCode);
+  }
+  if (phase === 3) {
+    if (ids.length > 0) {
+      db.prepare(`DELETE FROM phase3_comments WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase3_selections WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase3_team_ready WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase3_votes WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase3_guesses WHERE student_id IN (${placeholders})`).run(...ids);
+      db.prepare(`DELETE FROM phase3_reflections WHERE student_id IN (${placeholders})`).run(...ids);
+    }
+    db.prepare(`
+      UPDATE teachers
+      SET activity3_stage = 'intro',
+        activity3_intro_step = 0,
+        activity3_hunt_index = 0,
+        activity3_revealed = FALSE,
+        board_open = FALSE,
+        revealed = FALSE
+      WHERE class_code = ?
+    `).run(classCode);
+  }
+}
+
+function emitResetEvents(req) {
+  const io = getIo(req);
+  const teacher = db.prepare('SELECT current_phase, phase1_open, phase2_open, phase3_open, board_open, revealed FROM teachers WHERE class_code = ?').get(req.class_code);
+  io.emit('phase_status_changed', {
+    phase: teacher.current_phase,
+    open_phases: {
+      1: Boolean(teacher.phase1_open),
+      2: Boolean(teacher.phase2_open),
+      3: Boolean(teacher.phase3_open),
+    },
+    board_open: Boolean(teacher.board_open),
+    revealed: Boolean(teacher.revealed),
+  });
+  io.emit('activity1_state_changed', activity1State(req.class_code));
+  io.emit('activity1_padlet_updated');
+  io.emit('activity1_sns_updated');
+  io.emit('activity2_state_changed', activity2State(req.class_code));
+  io.emit('activity2_revisions_updated');
+  io.emit('activity3_updated');
+}
+
 router.use(requireTeacher);
 
 router.post('/upload-roster', (req, res) => {
@@ -221,6 +285,21 @@ router.post('/toggle-phase', (req, res) => {
   };
   getIo(req).emit('phase_status_changed', state);
   res.json({ ok: true, state });
+});
+
+router.post('/reset-activity', (req, res) => {
+  const phase = Number(req.body.phase);
+  if (![1, 2, 3].includes(phase)) return res.status(400).json({ error: '초기화할 활동을 확인해주세요' });
+  resetActivityData(req.class_code, phase);
+  emitResetEvents(req);
+  res.json({ ok: true });
+});
+
+router.post('/reset-all-activities', (req, res) => {
+  [1, 2, 3].forEach((phase) => resetActivityData(req.class_code, phase));
+  db.prepare('UPDATE teachers SET current_phase = 0, phase1_open = FALSE, phase2_open = FALSE, phase3_open = FALSE WHERE class_code = ?').run(req.class_code);
+  emitResetEvents(req);
+  res.json({ ok: true });
 });
 
 router.get('/activity1/state', (req, res) => {

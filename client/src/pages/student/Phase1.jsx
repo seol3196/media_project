@@ -168,7 +168,6 @@ export default function Phase1() {
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex items-center justify-between rounded-lg bg-white/90 p-3 shadow-sm backdrop-blur">
           <h2 className="text-2xl font-black">활동1</h2>
-          <button className="rounded-md border border-stone-300 bg-white px-3 py-2" onClick={() => navigate('/student')}>활동 목록</button>
         </div>
         {Card && <Card card={displayCard} />}
         <div className="flex flex-wrap gap-2 rounded-lg bg-white/90 p-3 shadow-sm backdrop-blur">

@@ -71,7 +71,6 @@ export default function Phase2() {
           <p className="text-sm font-bold text-stone-500">게시물 {state.step} / {state.total}</p>
           <h2 className="text-2xl font-black">활동2</h2>
         </div>
-        <button className="rounded-md border px-3 py-2" onClick={() => navigate('/student')}>활동 목록</button>
       </div>
 
       <Card card={displayPost} />

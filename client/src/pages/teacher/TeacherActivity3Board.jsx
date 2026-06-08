@@ -1,13 +1,74 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/session';
 import { socket } from '../../lib/socket';
+import malatangLunchImage from '../../assets/phase3/malatang-lunch.png';
+import uniformChoiceImage from '../../assets/phase3/uniform-choice.png';
+import dodgeballGymImage from '../../assets/phase3/dodgeball-gym.png';
+import rewardStickersImage from '../../assets/phase3/reward-stickers.png';
+import festivalStageImage from '../../assets/phase3/festival-stage.png';
+import milkCartonsImage from '../../assets/phase3/milk-cartons.png';
 
 const introScreens = [
-  { title: '여론전쟁', body: '댓글이 여론을 어떻게 움직이는지 직접 체험합니다.' },
-  { title: '활동 안내', body: '여러분은 모둠별로 하나의 게시글에 댓글을 작성할 예정이며, 각 모둠에는 미션이 주어집니다. 미션에 따라 여론을 조작하세요.' },
-  { title: '여론조작 잘하는 방법', body: '1. 진짜 학생처럼 자연스럽게 말하기\n2. 반대 의견을 가볍게 보이게 만들기\n3. 모두가 같은 생각인 것처럼 분위기 만들기' },
+  { title: '댓글전쟁', body: '댓글이 댓글 분위기를 어떻게 움직이는지 직접 체험합니다.' },
+  { title: '활동 안내', body: '여러분은 모둠별로 하나의 게시글에 댓글을 작성할 예정이며, 각 모둠에는 미션이 주어집니다. 미션에 따라 댓글 흐름을 조작하세요.' },
+  { title: '댓글조작 잘하는 방법', body: '1. 진짜 학생처럼 자연스럽게 말하기\n2. 반대 의견을 가볍게 보이게 만들기\n3. 모두가 같은 생각인 것처럼 분위기 만들기' },
   { title: '마지막 안내', body: '마지막 활동에서는 조작된 댓글을 찾습니다. 조작 댓글인 게 최대한 들키지 않도록 댓글과 댓글 사이에 자연스럽게 숨어야 합니다.' },
 ];
+
+const platformProfiles = {
+  A: {
+    type: 'instagram',
+    badge: 'SNS',
+    handle: '@hanbit_school_life',
+    name: '한빛초 급식로그',
+    avatar: '급',
+    accent: 'from-fuchsia-500 via-rose-500 to-amber-400',
+  },
+  B: {
+    type: 'x',
+    badge: '실시간 SNS',
+    handle: '@hanbit_news',
+    name: '한빛소식',
+    avatar: 'H',
+  },
+  C: {
+    type: 'youtube',
+    badge: '유튜브',
+    handle: '한빛 학교생활 TV',
+    name: '한빛 학교생활 TV',
+    avatar: '▶',
+  },
+  D: {
+    type: 'community',
+    badge: '커뮤니티',
+    handle: '익명하늘이',
+    name: '한빛초 6학년 게시판',
+    avatar: '익',
+  },
+  E: {
+    type: 'news',
+    badge: '기사',
+    handle: '한빛데일리 교육부',
+    name: '한빛데일리',
+    avatar: 'N',
+  },
+  F: {
+    type: 'petition',
+    badge: '청원',
+    handle: '한빛 시민청원',
+    name: '한빛 시민청원',
+    avatar: '청',
+  },
+};
+
+const postImages = {
+  A: { src: malatangLunchImage, alt: '급식 트레이 위 마라탕 사진' },
+  B: { src: uniformChoiceImage, alt: '책상 위 교복과 후드티 사진' },
+  C: { src: dodgeballGymImage, alt: '체육관 바닥 위 피구공 사진' },
+  D: { src: rewardStickersImage, alt: '교실 책상 위 칭찬 스티커 사진' },
+  E: { src: festivalStageImage, alt: '빈 학교 무대와 마이크 사진' },
+  F: { src: milkCartonsImage, alt: '급식실 책상 위 우유갑 사진' },
+};
 
 export default function TeacherActivity3Board() {
   const [data, setData] = useState(null);
@@ -52,7 +113,7 @@ export default function TeacherActivity3Board() {
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/15 pb-4">
           <div>
             <p className="font-bold text-white/60">활동3</p>
-            <h1 className="text-4xl font-black">여론전쟁 대시보드</h1>
+            <h1 className="text-4xl font-black">댓글전쟁 대시보드</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             {state.stage !== 'intro' && <button className="rounded-md border border-white/30 px-4 py-3 font-black text-white" onClick={() => setStage('intro')}>이전 설명</button>}
@@ -72,7 +133,7 @@ export default function TeacherActivity3Board() {
               <div className="mt-10 flex justify-center gap-2">
                 {state.intro_step > 0 && <button className="rounded-md border px-5 py-3 font-black" onClick={() => intro('previous')}>이전</button>}
                 {state.intro_step < introScreens.length - 1 && <button className="rounded-md bg-stone-950 px-5 py-3 font-black text-white" onClick={() => intro('next')}>다음</button>}
-                {state.intro_step === introScreens.length - 1 && <button className="rounded-md bg-rose-500 px-5 py-3 font-black text-white" onClick={() => setStage('manipulation')}>여론조작 시작하기</button>}
+                {state.intro_step === introScreens.length - 1 && <button className="rounded-md bg-rose-500 px-5 py-3 font-black text-white" onClick={() => setStage('manipulation')}>댓글조작 시작하기</button>}
               </div>
             </div>
           </section>
@@ -147,12 +208,219 @@ export default function TeacherActivity3Board() {
 }
 
 function PostCard({ post }) {
+  const profile = platformProfiles[post.team] || platformProfiles.A;
+  const bodyLines = splitBody(post.body);
+
+  if (profile.type === 'instagram') return <InstagramPost post={post} profile={profile} bodyLines={bodyLines} />;
+  if (profile.type === 'x') return <XPost post={post} profile={profile} bodyLines={bodyLines} />;
+  if (profile.type === 'youtube') return <YoutubePost post={post} profile={profile} bodyLines={bodyLines} />;
+  if (profile.type === 'community') return <CommunityPost post={post} profile={profile} bodyLines={bodyLines} />;
+  if (profile.type === 'news') return <NewsPost post={post} profile={profile} bodyLines={bodyLines} />;
+  if (profile.type === 'petition') return <PetitionPost post={post} profile={profile} bodyLines={bodyLines} />;
+  return <BasicPost post={post} bodyLines={bodyLines} />;
+}
+
+function InstagramPost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-xl overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-2xl">
+      <PlatformLabel profile={profile} />
+      <div className="flex items-center justify-between border-b border-stone-100 px-5 py-4">
+        <Identity profile={profile} gradient />
+        <span className="text-2xl leading-none">...</span>
+      </div>
+      <div className={`bg-gradient-to-br ${profile.accent} p-1`}>
+        <div className="bg-white">
+          <img className="aspect-square w-full object-cover" src={image.src} alt={image.alt} />
+        </div>
+      </div>
+      <div className="space-y-3 p-5">
+        <div className="flex gap-4 text-2xl"><span>♡</span><span>댓글</span><span>공유</span></div>
+        <p className="text-sm font-black text-stone-900">{post.meta}</p>
+        <h2 className="text-2xl font-black leading-tight">{post.title}</h2>
+        <BodyLines lines={bodyLines} />
+      </div>
+    </article>
+  );
+}
+
+function XPost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-2xl rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl">
+      <PlatformLabel profile={profile} />
+      <div className="flex gap-3">
+        <Avatar profile={profile} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="font-black">{profile.name}</span>
+            <span className="text-stone-500">{profile.handle}</span>
+            <span className="text-stone-400">· 방금</span>
+          </div>
+          <h2 className="mt-3 text-3xl font-black leading-tight">{post.title}</h2>
+          <BodyLines lines={bodyLines} className="mt-3 text-[1.05rem]" />
+          <img className="mt-4 aspect-video w-full rounded-2xl border border-stone-200 object-cover" src={image.src} alt={image.alt} />
+          <div className="mt-5 grid grid-cols-4 border-t border-stone-100 pt-3 text-sm font-bold text-stone-500">
+            <span>댓글</span><span>재게시</span><span>좋아요</span><span>공유</span>
+          </div>
+          <p className="mt-2 text-sm font-bold text-stone-500">{post.meta}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function YoutubePost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-4xl overflow-hidden rounded-xl bg-[#0f0f0f] text-white shadow-2xl">
+      <PlatformLabel profile={profile} dark />
+      <div className="relative grid aspect-video place-items-center overflow-hidden bg-stone-900">
+        <img className="absolute inset-0 h-full w-full object-cover opacity-70" src={image.src} alt={image.alt} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/15" />
+        <div className="absolute left-4 top-4 rounded bg-red-600 px-3 py-1 text-sm font-black">실시간 토론</div>
+        <div className="relative grid h-16 w-24 place-items-center rounded-2xl bg-red-600 shadow-2xl">
+          <div className="ml-1 h-0 w-0 border-y-[13px] border-l-[22px] border-y-transparent border-l-white" />
+        </div>
+        <h2 className="absolute bottom-5 left-5 right-5 text-3xl font-black leading-tight md:text-5xl">{post.title}</h2>
+      </div>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <Identity profile={profile} dark />
+          <button className="rounded-full bg-white px-4 py-2 text-sm font-black text-stone-950">구독</button>
+        </div>
+        <p className="mt-3 text-sm font-bold text-stone-400">{post.meta}</p>
+        <div className="mt-4 rounded-xl bg-white/10 p-4">
+          <BodyLines lines={bodyLines} className="text-stone-100" />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function CommunityPost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-sky-200 bg-white shadow-2xl">
+      <PlatformLabel profile={profile} />
+      <div className="border-b border-sky-100 bg-sky-50 px-5 py-3">
+        <div className="text-sm font-black text-sky-700">{profile.name}</div>
+        <h2 className="mt-2 text-3xl font-black leading-tight text-stone-950">{post.title}</h2>
+      </div>
+      <div className="grid grid-cols-[96px_1fr] gap-4 p-5">
+        <div className="rounded-md border border-stone-200 bg-stone-50 p-3 text-center">
+          <Avatar profile={profile} centered />
+          <p className="mt-2 text-xs font-bold text-stone-500">{post.author}</p>
+        </div>
+        <div>
+          <p className="mb-3 text-sm font-bold text-stone-500">{post.meta}</p>
+          <img className="mb-4 aspect-video w-full rounded-lg border border-stone-200 object-cover" src={image.src} alt={image.alt} />
+          <BodyLines lines={bodyLines} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function NewsPost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-4xl rounded-sm border border-stone-300 bg-[#fffdf6] p-6 font-serif shadow-2xl md:p-8">
+      <PlatformLabel profile={profile} />
+      <div className="border-b-2 border-stone-950 pb-3 text-center text-3xl font-black tracking-wide">{profile.name}</div>
+      <p className="mt-4 text-sm font-bold text-stone-500">{post.mediaType} · {post.format}</p>
+      <h2 className="mt-2 text-4xl font-black leading-tight text-stone-950">{post.title}</h2>
+      <p className="mt-3 text-sm font-bold text-stone-500">{post.author} · {post.meta}</p>
+      <img className="mt-5 aspect-video w-full border border-stone-300 object-cover" src={image.src} alt={image.alt} />
+      <BodyLines lines={bodyLines} className="mt-5 text-stone-800" />
+    </article>
+  );
+}
+
+function PetitionPost({ post, profile, bodyLines }) {
+  const image = getPostImage(post);
+  return (
+    <article className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-emerald-200 bg-white shadow-2xl">
+      <PlatformLabel profile={profile} />
+      <div className="bg-emerald-700 px-5 py-4 text-white">
+        <p className="text-sm font-black">{profile.name}</p>
+        <h2 className="mt-2 text-3xl font-black leading-tight">{post.title}</h2>
+      </div>
+      <div className="grid gap-5 p-5 md:grid-cols-[1fr_220px]">
+        <div>
+          <p className="mb-3 text-sm font-bold text-stone-500">{post.author}</p>
+          <img className="mb-4 aspect-video w-full rounded-lg border border-emerald-100 object-cover" src={image.src} alt={image.alt} />
+          <BodyLines lines={bodyLines} />
+        </div>
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-black text-emerald-800">현재 동의</p>
+          <p className="mt-1 text-4xl font-black text-emerald-900">{extractNumber(post.meta) || '1,847'}</p>
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-emerald-100">
+            <div className="h-full w-3/4 rounded-full bg-emerald-600" />
+          </div>
+          <button className="mt-4 w-full rounded-md bg-emerald-700 px-4 py-3 font-black text-white">동의하기</button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function BasicPost({ post, bodyLines }) {
   return (
     <article>
       <p className="text-sm font-bold text-stone-500">{post.mediaType} · {post.format} · {post.author}</p>
       <h2 className="mt-2 text-3xl font-black leading-tight">{post.title}</h2>
       <p className="mt-2 text-sm font-bold text-stone-500">{post.meta}</p>
-      <p className="mt-4 whitespace-pre-wrap leading-8">{post.body}</p>
+      <BodyLines lines={bodyLines} className="mt-4" />
     </article>
   );
+}
+
+function getPostImage(post) {
+  return postImages[post.team] || postImages.A;
+}
+
+function PlatformLabel({ profile, dark = false }) {
+  return (
+    <div className={`flex items-center justify-between px-5 py-3 text-sm font-black ${dark ? 'text-white/75' : 'text-stone-500'}`}>
+      <span>{profile.handle}</span>
+      <span className={`rounded-full px-3 py-1 ${dark ? 'bg-white/10 text-white' : 'bg-stone-100 text-stone-700'}`}>{profile.badge}</span>
+    </div>
+  );
+}
+
+function Identity({ profile, gradient = false, dark = false }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar profile={profile} gradient={gradient} />
+      <div>
+        <div className={`font-black ${dark ? 'text-white' : 'text-stone-950'}`}>{profile.name}</div>
+        <div className={`text-sm ${dark ? 'text-stone-400' : 'text-stone-500'}`}>{profile.handle}</div>
+      </div>
+    </div>
+  );
+}
+
+function Avatar({ profile, gradient = false, centered = false }) {
+  const className = gradient
+    ? `grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br ${profile.accent} text-sm font-black text-white`
+    : 'grid h-11 w-11 place-items-center rounded-full bg-stone-950 text-sm font-black text-white';
+  return <div className={`${className} ${centered ? 'mx-auto' : ''}`}>{profile.avatar}</div>;
+}
+
+function BodyLines({ lines, className = '' }) {
+  return (
+    <div className={`whitespace-pre-wrap leading-8 ${className}`}>
+      {lines.map((line, index) => line ? <p key={index} className="mb-3 last:mb-0">{line}</p> : <div key={index} className="h-2" />)}
+    </div>
+  );
+}
+
+function splitBody(body = '') {
+  return String(body).split('\n').map((line) => line.trim());
+}
+
+function extractNumber(value = '') {
+  const match = String(value).match(/[\d,]+/);
+  return match?.[0];
 }

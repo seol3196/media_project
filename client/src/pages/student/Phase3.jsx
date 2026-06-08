@@ -3,10 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/session';
 import { socket } from '../../lib/socket';
 import malatangLunchImage from '../../assets/phase3/malatang-lunch.png';
+import uniformChoiceImage from '../../assets/phase3/uniform-choice.png';
+import dodgeballGymImage from '../../assets/phase3/dodgeball-gym.png';
+import rewardStickersImage from '../../assets/phase3/reward-stickers.png';
+import festivalStageImage from '../../assets/phase3/festival-stage.png';
+import milkCartonsImage from '../../assets/phase3/milk-cartons.png';
 
 const stageLabels = {
   intro: '대기',
-  manipulation: '여론 조작하기',
+  manipulation: '댓글 조작하기',
   comment: '댓글 달기',
   hunt: '조작 댓글 찾기',
   results: '결과 확인',
@@ -65,6 +70,15 @@ const platformProfiles = {
 };
 
 const teamFallback = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+const postImages = {
+  A: { src: malatangLunchImage, alt: '급식 트레이 위 마라탕 사진' },
+  B: { src: uniformChoiceImage, alt: '책상 위 교복과 후드티 사진' },
+  C: { src: dodgeballGymImage, alt: '체육관 바닥 위 피구공 사진' },
+  D: { src: rewardStickersImage, alt: '교실 책상 위 칭찬 스티커 사진' },
+  E: { src: festivalStageImage, alt: '빈 학교 무대와 마이크 사진' },
+  F: { src: milkCartonsImage, alt: '급식실 책상 위 우유갑 사진' },
+};
 
 export default function Phase3() {
   const navigate = useNavigate();
@@ -143,15 +157,14 @@ export default function Phase3() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-bold text-stone-500">활동3 · {stageLabels[stage]}</p>
-          <h2 className="text-3xl font-black">여론전쟁</h2>
+          <h2 className="text-3xl font-black">댓글전쟁</h2>
         </div>
-        <button className="rounded-md border px-3 py-2" onClick={() => navigate('/student')}>활동 목록</button>
       </header>
 
       {stage === 'intro' && (
         <section className="rounded-lg border border-stone-200 bg-white p-6">
           <h3 className="text-2xl font-black">선생님이 활동을 시작하면 게시글이 열립니다.</h3>
-          <p className="mt-3 leading-7 text-stone-600">이번 활동에서는 댓글이 여론을 어떻게 움직이는지 직접 체험합니다.</p>
+          <p className="mt-3 leading-7 text-stone-600">이번 활동에서는 댓글이 댓글 분위기를 어떻게 움직이는지 직접 체험합니다.</p>
         </section>
       )}
 
@@ -265,6 +278,7 @@ function PostCard({ post, label, compact = false }) {
 }
 
 function InstagramPost({ post, profile, label, compact, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className={`mx-auto max-w-xl overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-xl ${compact ? '' : 'min-h-80'}`}>
       <PlatformLabel label={label} profile={profile} />
@@ -274,7 +288,7 @@ function InstagramPost({ post, profile, label, compact, bodyLines }) {
       </div>
       <div className={`bg-gradient-to-br ${profile.accent} p-1`}>
         <div className="bg-white">
-          <img className="aspect-square w-full object-cover" src={malatangLunchImage} alt="급식 트레이 위 마라탕 사진" />
+          <img className="aspect-square w-full object-cover" src={image.src} alt={image.alt} />
         </div>
       </div>
       <div className="space-y-3 p-5">
@@ -288,6 +302,7 @@ function InstagramPost({ post, profile, label, compact, bodyLines }) {
 }
 
 function XPost({ post, profile, label, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className="mx-auto max-w-2xl rounded-2xl border border-stone-200 bg-white p-5 shadow-xl">
       <PlatformLabel label={label} profile={profile} />
@@ -301,6 +316,7 @@ function XPost({ post, profile, label, bodyLines }) {
           </div>
           <h3 className="mt-3 text-2xl font-black leading-tight">{post.title}</h3>
           <BodyLines lines={bodyLines} className="mt-3 text-[1.05rem]" />
+          <img className="mt-4 aspect-video w-full rounded-2xl border border-stone-200 object-cover" src={image.src} alt={image.alt} />
           <div className="mt-5 grid grid-cols-4 border-t border-stone-100 pt-3 text-sm font-bold text-stone-500">
             <span>댓글</span><span>재게시</span><span>좋아요</span><span>공유</span>
           </div>
@@ -312,12 +328,15 @@ function XPost({ post, profile, label, bodyLines }) {
 }
 
 function YoutubePost({ post, profile, label, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className="mx-auto max-w-4xl overflow-hidden rounded-xl bg-[#0f0f0f] text-white shadow-2xl">
       <PlatformLabel label={label} profile={profile} dark />
-      <div className="relative grid aspect-video place-items-center bg-gradient-to-br from-stone-900 via-stone-800 to-red-950 p-6">
+      <div className="relative grid aspect-video place-items-center overflow-hidden bg-stone-900">
+        <img className="absolute inset-0 h-full w-full object-cover opacity-70" src={image.src} alt={image.alt} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/15" />
         <div className="absolute left-4 top-4 rounded bg-red-600 px-3 py-1 text-sm font-black">LIVE 토론</div>
-        <div className="grid h-16 w-24 place-items-center rounded-2xl bg-red-600 shadow-2xl">
+        <div className="relative grid h-16 w-24 place-items-center rounded-2xl bg-red-600 shadow-2xl">
           <div className="ml-1 h-0 w-0 border-y-[13px] border-l-[22px] border-y-transparent border-l-white" />
         </div>
         <h3 className="absolute bottom-5 left-5 right-5 text-3xl font-black leading-tight md:text-5xl">{post.title}</h3>
@@ -337,6 +356,7 @@ function YoutubePost({ post, profile, label, bodyLines }) {
 }
 
 function CommunityPost({ post, profile, label, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-sky-200 bg-white shadow-xl">
       <PlatformLabel label={label} profile={profile} />
@@ -351,6 +371,7 @@ function CommunityPost({ post, profile, label, bodyLines }) {
         </div>
         <div>
           <p className="mb-3 text-sm font-bold text-stone-500">{post.meta}</p>
+          <img className="mb-4 aspect-video w-full rounded-lg border border-stone-200 object-cover" src={image.src} alt={image.alt} />
           <BodyLines lines={bodyLines} />
         </div>
       </div>
@@ -359,6 +380,7 @@ function CommunityPost({ post, profile, label, bodyLines }) {
 }
 
 function NewsPost({ post, profile, label, compact, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className={`mx-auto max-w-4xl rounded-sm border border-stone-300 bg-[#fffdf6] p-5 font-serif shadow-xl md:p-8 ${compact ? '' : 'min-h-80'}`}>
       <PlatformLabel label={label} profile={profile} />
@@ -368,6 +390,7 @@ function NewsPost({ post, profile, label, compact, bodyLines }) {
           <p className="text-sm font-bold text-stone-500">{post.mediaType} · {post.format}</p>
           <h3 className="mt-2 text-4xl font-black leading-tight text-stone-950">{post.title}</h3>
           <p className="mt-3 text-sm font-bold text-stone-500">{post.author} · {post.meta}</p>
+          <img className="mt-5 aspect-video w-full border border-stone-300 object-cover" src={image.src} alt={image.alt} />
           <BodyLines lines={bodyLines} className="mt-5 text-stone-800" />
         </div>
       </div>
@@ -376,6 +399,7 @@ function NewsPost({ post, profile, label, compact, bodyLines }) {
 }
 
 function PetitionPost({ post, profile, label, bodyLines }) {
+  const image = getPostImage(post);
   return (
     <article className="mx-auto max-w-3xl overflow-hidden rounded-lg border border-emerald-200 bg-white shadow-xl">
       <PlatformLabel label={label} profile={profile} />
@@ -386,6 +410,7 @@ function PetitionPost({ post, profile, label, bodyLines }) {
       <div className="grid gap-5 p-5 md:grid-cols-[1fr_220px]">
         <div>
           <p className="mb-3 text-sm font-bold text-stone-500">{post.author}</p>
+          <img className="mb-4 aspect-video w-full rounded-lg border border-emerald-100 object-cover" src={image.src} alt={image.alt} />
           <BodyLines lines={bodyLines} />
         </div>
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
@@ -456,6 +481,10 @@ function getPlatformProfile(post) {
   if (platformProfiles[post.team]) return platformProfiles[post.team];
   const index = Math.max(0, teamFallback.indexOf(post.team));
   return platformProfiles[teamFallback[index % teamFallback.length]];
+}
+
+function getPostImage(post) {
+  return postImages[post.team] || postImages.A;
 }
 
 function splitBody(body = '') {

@@ -18,14 +18,16 @@ import Phase3 from './pages/student/Phase3.jsx';
 
 function Layout({ children }) {
   const user = getUser();
+  const navigate = useNavigate();
+  const homePath = user?.role === 'teacher' ? '/teacher' : user?.role === 'admin' ? '/admin' : '/student';
   return (
     <div className="app-shell">
       <header className="border-b border-stone-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div>
+          <button className="text-left" onClick={() => navigate(homePath)}>
             <div className="text-sm text-stone-500">6학년 사회 체험 수업</div>
             <h1 className="text-xl font-bold text-stone-900">우리가 만드는 미디어 세상</h1>
-          </div>
+          </button>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

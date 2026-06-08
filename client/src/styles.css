@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+.media-rush-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0.48;
+  pointer-events: none;
+}
+
+.media-rush-line {
+  position: absolute;
+  top: var(--line-top);
+  left: 0;
+  white-space: nowrap;
+  color: var(--line-color);
+  font-size: clamp(1rem, 2vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.08);
+  animation-name: media-rush-slide;
+  animation-duration: var(--line-duration);
+  animation-delay: var(--line-delay);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  transform: translateX(-120vw);
+  will-change: transform;
+}
+
+@keyframes media-rush-slide {
+  from {
+    transform: translateX(-120vw);
+  }
+  to {
+    transform: translateX(120vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-rush-line {
+    animation: none;
+    transform: translateX(12vw);
+  }
+}
+
 body {
   margin: 0;
   background: #f7f7f2;

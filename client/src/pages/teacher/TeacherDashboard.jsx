@@ -8,7 +8,7 @@ import Phase3Monitor from './Phase3Monitor.jsx';
 const activitySummaries = {
   1: '매체별 전달 방식과 특징을 비교합니다.',
   2: '댓글을 읽고 토론에 도움이 되는 반응을 구분합니다.',
-  3: '여론 조작 역할극과 추리 활동을 진행합니다.',
+  3: '댓글 조작 역할극과 추리 활동을 진행합니다.',
 };
 
 export default function TeacherDashboard() {
@@ -110,6 +110,18 @@ export default function TeacherDashboard() {
     refresh();
   }
 
+  async function resetActivity(activity) {
+    if (!window.confirm(`활동${activity}에서 학생들이 작업한 내용을 초기화할까요?`)) return;
+    await api('/api/teacher/reset-activity', { method: 'POST', body: JSON.stringify({ phase: activity }) });
+    refresh();
+  }
+
+  async function resetAllActivities() {
+    if (!window.confirm('전체 활동의 학생 작업 내용과 진행 상태를 모두 초기화할까요?')) return;
+    await api('/api/teacher/reset-all-activities', { method: 'POST', body: '{}' });
+    refresh();
+  }
+
   return (
     <div className="space-y-6">
       <section className="grid gap-4 md:grid-cols-[1fr_320px]">
@@ -151,6 +163,12 @@ export default function TeacherDashboard() {
                 >
                   {openPhases[item] ? '닫기' : `활동${item} 열기`}
                 </button>
+                <button
+                  className="mt-2 w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
+                  onClick={() => resetActivity(item)}
+                >
+                  활동 초기화
+                </button>
               </div>
             ))}
           </div>
@@ -167,6 +185,7 @@ export default function TeacherDashboard() {
               </>
             )}
             <button className="rounded-md border px-3 py-2" onClick={refresh}>새로고침</button>
+            <button className="rounded-md border border-red-300 bg-red-50 px-3 py-2 font-bold text-red-700" onClick={resetAllActivities}>전체 활동 초기화</button>
           </div>
         </div>
         <RosterUpload onUploaded={setStudents} />
