@@ -49,27 +49,28 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-[#14110d]">
-      <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="relative isolate min-h-[520px] overflow-hidden rounded-lg bg-[#14110d] px-6 py-10 text-white shadow-2xl md:min-h-[680px] md:px-10">
-          <div className="media-rush-layer" aria-hidden="true">
-            {mediaStreamItems.map((item, index) => (
-              <span
-                key={`${item.text}-${index}`}
-                className="media-rush-line"
-                style={{
-                  '--line-top': item.top,
-                  '--line-duration': item.duration,
-                  '--line-delay': item.delay,
-                  '--line-color': item.color,
-                }}
-              >
-                {item.text}
-              </span>
-            ))}
-          </div>
-          <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#14110d] via-[#14110d]/80 to-[#14110d]/30" />
-          <div className="relative z-20 flex min-h-[440px] flex-col justify-center md:min-h-[600px]">
+    <main className="relative isolate min-h-screen overflow-hidden bg-[#14110d]">
+      <div className="media-rush-layer" aria-hidden="true">
+        {mediaStreamItems.map((item, index) => (
+          <span
+            key={`${item.text}-${index}`}
+            className="media-rush-line"
+            style={{
+              '--line-top': item.top,
+              '--line-duration': item.duration,
+              '--line-delay': item.delay,
+              '--line-color': item.color,
+            }}
+          >
+            {item.text}
+          </span>
+        ))}
+      </div>
+      <div className="absolute inset-0 z-10 bg-gradient-to-r from-[#14110d] via-[#14110d]/82 to-[#14110d]/42" />
+      <div className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_18%_42%,rgba(239,159,39,0.14),transparent_34%),radial-gradient(circle_at_82%_62%,rgba(93,202,165,0.1),transparent_30%)]" />
+      <div className="relative z-20 mx-auto grid min-h-screen max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="px-2 py-10 text-white md:px-8">
+          <div className="flex min-h-[420px] flex-col justify-center md:min-h-[600px]">
             <p className="mb-3 text-sm font-black text-amber-300">민주주의와 미디어</p>
             <h1 className="max-w-xl text-5xl font-black leading-tight text-white md:text-7xl">미디어 세계</h1>
             <p className="mt-5 max-w-xl text-xl font-bold leading-9 text-stone-100 md:text-2xl">
@@ -77,14 +78,14 @@ export default function Login() {
             </p>
           </div>
         </section>
-        <form onSubmit={submit} className="relative z-20 rounded-lg border border-stone-200 bg-white p-5 shadow-2xl">
-          <div className="mb-5 grid grid-cols-3 rounded-md bg-stone-100 p-1">
+        <form onSubmit={submit} className="rounded-lg border border-white/15 bg-[#211b16]/92 p-5 text-stone-100 shadow-2xl shadow-black/45 backdrop-blur-md">
+          <div className="mb-5 grid grid-cols-3 rounded-md bg-black/30 p-1">
             {['student', 'teacher', 'admin'].map((item) => (
               <button
                 type="button"
                 key={item}
                 onClick={() => setTab(item)}
-                className={`rounded px-3 py-2 font-semibold ${tab === item ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-500'}`}
+                className={`rounded px-3 py-2 font-semibold ${tab === item ? 'bg-amber-300 text-stone-950 shadow-sm' : 'text-stone-300'}`}
               >
                 {item === 'student' ? '학생' : item === 'teacher' ? '교사' : '관리자'}
               </button>
@@ -93,38 +94,38 @@ export default function Login() {
           {tab === 'admin' ? (
             <>
               <label className="mb-3 block">
-                <span className="mb-1 block text-sm font-semibold">아이디</span>
-                <input className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                <span className="mb-1 block text-sm font-semibold text-stone-200">아이디</span>
+                <input className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
               </label>
               <label className="mb-3 block">
-                <span className="mb-1 block text-sm font-semibold">비밀번호</span>
-                <input type="password" className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <span className="mb-1 block text-sm font-semibold text-stone-200">비밀번호</span>
+                <input type="password" className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               </label>
             </>
           ) : tab === 'teacher' ? (
             <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-semibold">반 코드</span>
-              <input className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.class_code} onChange={(e) => setForm({ ...form, class_code: e.target.value })} />
+              <span className="mb-1 block text-sm font-semibold text-stone-200">반 코드</span>
+              <input className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.class_code} onChange={(e) => setForm({ ...form, class_code: e.target.value })} />
             </label>
           ) : (
             <>
               <label className="mb-3 block">
-                <span className="mb-1 block text-sm font-semibold">반 코드</span>
-                <input className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.class_code} onChange={(e) => setForm({ ...form, class_code: e.target.value })} />
+                <span className="mb-1 block text-sm font-semibold text-stone-200">반 코드</span>
+                <input className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.class_code} onChange={(e) => setForm({ ...form, class_code: e.target.value })} />
               </label>
               <label className="mb-3 block">
-                <span className="mb-1 block text-sm font-semibold">번호</span>
-                <input className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.student_number} onChange={(e) => setForm({ ...form, student_number: e.target.value })} />
+                <span className="mb-1 block text-sm font-semibold text-stone-200">번호</span>
+                <input className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.student_number} onChange={(e) => setForm({ ...form, student_number: e.target.value })} />
               </label>
               <label className="mb-3 block">
-                <span className="mb-1 block text-sm font-semibold">이름</span>
-                <input className="w-full rounded-md border border-stone-300 px-3 py-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <span className="mb-1 block text-sm font-semibold text-stone-200">이름</span>
+                <input className="w-full rounded-md border border-white/15 bg-[#14110d] px-3 py-2 text-white outline-none focus:border-amber-300" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               </label>
             </>
           )}
           {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-          <button className="w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white hover:bg-stone-800">입장</button>
-          {tab === 'teacher' && <p className="mt-3 text-xs text-stone-500">관리자가 발급한 반 코드로 입장합니다.</p>}
+          <button className="w-full rounded-md bg-amber-300 px-4 py-3 font-bold text-stone-950 hover:bg-amber-200">입장</button>
+          {tab === 'teacher' && <p className="mt-3 text-xs text-stone-400">관리자가 발급한 반 코드로 입장합니다.</p>}
         </form>
       </div>
     </main>

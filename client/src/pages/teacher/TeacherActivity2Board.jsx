@@ -53,9 +53,9 @@ export default function TeacherActivity2Board() {
   }
 
   function openRevisions() {
-    const opened = window.open(`/teacher/activity2-revisions?post=${post.id}`, '_blank', 'width=1400,height=900,noreferrer');
+    const opened = window.open(`/teacher/activity2-revisions?post=${post.id}`, 'activity2-revisions', 'width=1400,height=900');
     if (opened) opened.focus();
-    else window.location.href = `/teacher/activity2-revisions?post=${post.id}`;
+    else alert('새 창이 차단되었습니다. 브라우저의 팝업 차단을 해제한 뒤 다시 눌러주세요.');
   }
 
   if (!post) return <div className="min-h-screen bg-stone-950 p-6 text-white">불러오는 중...</div>;
