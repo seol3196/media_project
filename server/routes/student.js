@@ -178,6 +178,18 @@ router.get('/activity1/sns-posts', (req, res) => {
   res.json({ posts: posts.map((post) => ({ ...post, liked_by_me: Boolean(post.liked_by_me) })), has_posted: Boolean(myPost), my_post: myPost || null });
 });
 
+router.get('/activity1/answers', (req, res) => {
+  const question = Number(req.query.question || 3);
+  if (question !== 3) return res.status(400).json({ error: '친구 답변 보기는 3번 문제에서만 가능합니다' });
+  const answers = db.prepare(`
+    SELECT a.*, s.student_number, s.name
+    FROM activity1_answers a JOIN students s ON s.id = a.student_id
+    WHERE s.class_code = ? AND a.question = ?
+    ORDER BY a.submitted_at DESC
+  `).all(req.student.class_code, question).map((row) => ({ ...row, payload: parseJson(row.payload, {}) }));
+  res.json({ answers });
+});
+
 router.post('/activity1/sns-posts/:postId/like', (req, res) => {
   const postId = Number(req.params.postId);
   const post = db.prepare(`

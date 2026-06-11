@@ -1,27 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../lib/session';
 import { socket } from '../../lib/socket';
-import newspaperImage from '../../assets/phase1/newspaper-kickboards.jpg';
-import broadcastImage from '../../assets/phase1/broadcast-kickboards.jpg';
-import broadcastImage2 from '../../assets/phase1/broadcast-kickboards1.jpg';
-import snsImage from '../../assets/phase1/sns-kickboards.jpg';
-import youtubeImage from '../../assets/phase1/youtube-thumbnail.png';
-
-const photoMap = {
-  'park-entrance': newspaperImage,
-  'sidewalk-news': broadcastImage,
-  'phone-shot': snsImage,
-  'video-thumb': youtubeImage,
-  'wide-sidewalk': broadcastImage2,
-};
-
-const photoLabels = {
-  'park-entrance': '공원 입구',
-  'sidewalk-news': '인도 현장',
-  'phone-shot': '가까이 찍은 사진',
-  'video-thumb': '영상 썸네일',
-  'wide-sidewalk': '넓은 길 사진',
-};
+import { snsPhotoLabels, snsPhotoMap } from '../../lib/activity1SnsPhotos';
 
 export default function TeacherActivity1SNS() {
   const [posts, setPosts] = useState([]);
@@ -57,7 +37,7 @@ export default function TeacherActivity1SNS() {
 
         <section className="mx-auto max-w-2xl space-y-5">
           {sortedPosts.map((post) => {
-            const imageSrc = photoMap[post.photo_id];
+            const imageSrc = snsPhotoMap[post.photo_id];
             return (
               <article key={post.id} className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
                 <div className="flex items-center gap-3 border-b border-stone-100 p-3">
@@ -71,7 +51,7 @@ export default function TeacherActivity1SNS() {
                   <div className="text-sm font-black text-rose-600">좋아요 {post.like_count}개</div>
                 </div>
                 <div>
-                  {imageSrc && <img className="max-h-[360px] w-full object-cover" src={imageSrc} alt={photoLabels[post.photo_id] || 'SNS 사진'} />}
+                  {imageSrc && <img className="max-h-[360px] w-full object-cover" src={imageSrc} alt={snsPhotoLabels[post.photo_id] || 'SNS 사진'} />}
                   {!imageSrc && <div className="grid h-48 place-items-center bg-stone-100 px-3 text-center text-sm font-bold text-stone-400">사진 없음</div>}
                   <p className="whitespace-pre-wrap p-4 text-base leading-7">{post.content}</p>
                 </div>

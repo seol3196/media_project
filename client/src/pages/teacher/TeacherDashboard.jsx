@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, getUser } from '../../lib/session';
 import RosterUpload from './RosterUpload.jsx';
-import Phase1Monitor from './Phase1Monitor.jsx';
-import Phase2Monitor from './Phase2Monitor.jsx';
-import Phase3Monitor from './Phase3Monitor.jsx';
 
 const activitySummaries = {
   1: '매체별 전달 방식과 특징을 비교합니다.',
@@ -11,32 +8,48 @@ const activitySummaries = {
   3: '댓글 조작 역할극과 추리 활동을 진행합니다.',
 };
 
+const activityDetails = {
+  1: [
+    '신문, 방송, SNS, 유튜브 형식의 같은 사건 자료를 학생들이 살펴봅니다.',
+    '매체마다 주로 쓰는 전달 방식과 특징을 체크하고 연결합니다.',
+    '가장 정확해 보이는 매체와 가장 관심을 끄는 매체를 고르고 이유를 씁니다.',
+    '마지막에는 학생들이 직접 SNS 게시물을 만들어 보고 우리 반 피드에서 서로의 글을 확인합니다.',
+  ],
+  2: [
+    '활동1에서 봤던 네 가지 게시물에 댓글 5개씩이 붙어 있습니다.',
+    '교사가 정답보기를 누르면 고쳐야 할 댓글이 공개되고, 학생들은 그 댓글을 더 좋은 댓글로 바꿔 씁니다.',
+    '학생이 제출하면 다른 학생 댓글 보기가 열리고, 교사는 수정된 댓글 보기 창에서 포스트잇처럼 모아 볼 수 있습니다.',
+    '핵심은 비난하거나 단정하는 댓글을 사실 확인, 존중, 해결책이 담긴 댓글로 바꾸는 것입니다.',
+  ],
+  3: [
+    '학생들은 모둠별로 서로 다른 게시글을 맡아 미션에 맞는 조작 댓글을 작성합니다.',
+    '그 뒤 다른 게시글에 일반 댓글을 달고, 마지막에는 어떤 댓글이 조작 댓글인지 추리합니다.',
+    '교사용 활동 대시보드에서 설명, 댓글 작성, 일반 댓글, 조작 댓글 찾기, 정답 공개 단계를 진행합니다.',
+    '댓글이 사람들의 판단과 분위기에 어떤 영향을 주는지 체험하고 돌아보는 활동입니다.',
+  ],
+};
+
 export default function TeacherDashboard() {
   const classCode = getUser()?.class_code || '6-2';
   const [phase, setPhase] = useState(0);
   const [openPhases, setOpenPhases] = useState({ 1: false, 2: false, 3: false });
   const [students, setStudents] = useState([]);
-  const [p1, setP1] = useState([]);
-  const [p2, setP2] = useState({ comments: [], classifications: [] });
-  const [p3, setP3] = useState({ comments: [], votes: [], guesses: [], reflections: [] });
   const [editingStudents, setEditingStudents] = useState({});
   const [activity3TeamCount, setActivity3TeamCount] = useState(2);
+  const [resetTarget, setResetTarget] = useState('1');
+  const [expandedActivity, setExpandedActivity] = useState(null);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
 
   async function refresh() {
-    const [{ phase: currentPhase, open_phases }, studentData, phase1, phase2, phase3, activity3] = await Promise.all([
+    const [{ phase: currentPhase, open_phases }, studentData, activity3] = await Promise.all([
       api(`/api/auth/phase?class_code=${encodeURIComponent(classCode)}`),
       api('/api/teacher/students'),
-      api('/api/teacher/phase1'),
-      api('/api/teacher/phase2'),
-      api('/api/teacher/phase3'),
       api('/api/teacher/activity3/state'),
     ]);
     setPhase(currentPhase);
     setOpenPhases(open_phases);
     setStudents(studentData.students);
-    setP1(phase1.responses);
-    setP2(phase2);
-    setP3(phase3);
+    setSelectedStudentIds((prev) => prev.filter((id) => studentData.students.some((student) => student.id === id)));
     setActivity3TeamCount(activity3.state.team_count);
   }
 
@@ -70,11 +83,6 @@ export default function TeacherDashboard() {
       delete next[studentId];
       return next;
     });
-  }
-
-  async function markCorrect(guess_id, is_correct) {
-    await api('/api/teacher/mark-correct', { method: 'POST', body: JSON.stringify({ guess_id, is_correct }) });
-    refresh();
   }
 
   function openActivity1Board() {
@@ -122,53 +130,116 @@ export default function TeacherDashboard() {
     refresh();
   }
 
+  async function resetBySelectedTarget() {
+    if (resetTarget === 'all') {
+      await resetAllActivities();
+      return;
+    }
+    await resetActivity(Number(resetTarget));
+  }
+
+  async function resetStudentActivities(student) {
+    if (!window.confirm(`${student.student_number}번 ${student.name} 학생의 모든 활동 기록을 초기화할까요?`)) return;
+    const result = await api('/api/teacher/reset-student-activities', { method: 'POST', body: JSON.stringify({ student_id: student.id }) });
+    setStudents(result.students);
+    refresh();
+  }
+
+  function toggleStudentSelection(studentId) {
+    setSelectedStudentIds((prev) => (
+      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+    ));
+  }
+
+  function toggleAllStudents(checked) {
+    setSelectedStudentIds(checked ? students.map((student) => student.id) : []);
+  }
+
+  async function deleteSelectedStudents() {
+    if (selectedStudentIds.length === 0) {
+      alert('삭제할 학생을 선택해주세요.');
+      return;
+    }
+    if (!window.confirm(`선택한 학생 ${selectedStudentIds.length}명을 삭제할까요? 학생 활동 기록도 함께 삭제됩니다.`)) return;
+    const result = await api('/api/teacher/delete-students', { method: 'POST', body: JSON.stringify({ student_ids: selectedStudentIds }) });
+    setStudents(result.students);
+    setSelectedStudentIds([]);
+    refresh();
+  }
+
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-[1fr_320px]">
+      <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="rounded-lg border border-stone-200 bg-white p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm text-stone-500">활동 공개 상태</p>
               <h2 className="text-3xl font-black">{phase === 0 ? '열린 활동 없음' : `활동${phase} 최근 열림`}</h2>
             </div>
+            <button className="rounded-md border px-3 py-2" onClick={refresh}>새로고침</button>
           </div>
-          <div className="mb-4 grid gap-2 md:grid-cols-3">
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-red-100 bg-red-50 p-3">
+            <label className="flex items-center gap-2">
+              <span className="text-sm font-black text-red-800">초기화 대상</span>
+              <select className="rounded-md border border-red-200 bg-white px-3 py-2 font-bold text-red-900" value={resetTarget} onChange={(event) => setResetTarget(event.target.value)}>
+                <option value="1">활동1</option>
+                <option value="2">활동2</option>
+                <option value="3">활동3</option>
+                <option value="all">모든 활동</option>
+              </select>
+            </label>
+            <button className="rounded-md border border-red-300 bg-white px-4 py-2 font-black text-red-700" onClick={resetBySelectedTarget}>초기화</button>
+          </div>
+          <div className="mb-4 space-y-3">
             {[1, 2, 3].map((item) => (
-              <div key={item} className="rounded-md border border-stone-200 p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-bold">활동{item}</span>
-                  <span className={`rounded-full px-2 py-1 text-xs font-bold ${openPhases[item] ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
-                    {openPhases[item] ? '열림' : '닫힘'}
-                  </span>
+              <div key={item} className="rounded-md border border-stone-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-xl font-black">활동{item}</span>
+                      <span className={`rounded-full px-2 py-1 text-xs font-bold ${openPhases[item] ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
+                        {openPhases[item] ? '열림' : '닫힘'}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-6 text-stone-600">{activitySummaries[item]}</p>
+                  </div>
+                  <button
+                    className="rounded-md border border-stone-300 px-3 py-2 text-sm font-bold text-stone-700"
+                    onClick={() => setExpandedActivity(expandedActivity === item ? null : item)}
+                  >
+                    활동 설명 보기
+                  </button>
                 </div>
-                <p className="mb-3 min-h-10 text-sm leading-5 text-stone-600">{activitySummaries[item]}</p>
-                {item === 1 && (
-                  <button type="button" className="mb-2 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900" onClick={openActivity1Board}>
-                    활동 대시보드
-                  </button>
+                {expandedActivity === item && (
+                  <div className="mt-3 rounded-md bg-stone-50 p-3">
+                    <ul className="space-y-2 text-sm leading-6 text-stone-700">
+                      {activityDetails[item].map((detail) => <li key={detail}>- {detail}</li>)}
+                    </ul>
+                  </div>
                 )}
-                {item === 2 && (
-                  <button type="button" className="mb-2 w-full rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-900" onClick={openActivity2Board}>
-                    활동 대시보드
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {item === 1 && (
+                    <button type="button" className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900" onClick={openActivity1Board}>
+                      활동 대시보드
+                    </button>
+                  )}
+                  {item === 2 && (
+                    <button type="button" className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-900" onClick={openActivity2Board}>
+                      활동 대시보드
+                    </button>
+                  )}
+                  {item === 3 && (
+                    <button type="button" className="rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-900" onClick={openActivity3Board}>
+                      활동 대시보드
+                    </button>
+                  )}
+                  <button
+                    className={`rounded-md px-3 py-2 text-sm font-bold ${openPhases[item] ? 'border border-stone-300 text-stone-700' : 'bg-stone-950 text-white'}`}
+                    onClick={() => togglePhase(item, !openPhases[item])}
+                  >
+                    {openPhases[item] ? '활동 닫기' : `활동${item} 열기`}
                   </button>
-                )}
-                {item === 3 && (
-                  <button type="button" className="mb-2 w-full rounded-md border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-900" onClick={openActivity3Board}>
-                    활동 대시보드
-                  </button>
-                )}
-                <button
-                  className={`w-full rounded-md px-3 py-2 text-sm font-bold ${openPhases[item] ? 'border border-stone-300 text-stone-700' : 'bg-stone-950 text-white'}`}
-                  onClick={() => togglePhase(item, !openPhases[item])}
-                >
-                  {openPhases[item] ? '닫기' : `활동${item} 열기`}
-                </button>
-                <button
-                  className="mt-2 w-full rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700"
-                  onClick={() => resetActivity(item)}
-                >
-                  활동 초기화
-                </button>
+                </div>
               </div>
             ))}
           </div>
@@ -184,26 +255,50 @@ export default function TeacherDashboard() {
                 <button className="rounded-md border px-3 py-2" onClick={() => setTeamCount(activity3TeamCount)}>모둠 자동 배정</button>
               </>
             )}
-            <button className="rounded-md border px-3 py-2" onClick={refresh}>새로고침</button>
-            <button className="rounded-md border border-red-300 bg-red-50 px-3 py-2 font-bold text-red-700" onClick={resetAllActivities}>전체 활동 초기화</button>
           </div>
         </div>
         <RosterUpload onUploaded={setStudents} />
       </section>
 
       <section className="rounded-lg border border-stone-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-black">학생 현황</h2>
-          <span className="text-sm text-stone-600">접속 {students.filter((s) => s.is_active).length} / {students.length}</span>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black">학생 현황</h2>
+            <p className="text-sm text-stone-600">접속 {students.filter((s) => s.is_active).length} / {students.length}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold text-stone-500">선택 {selectedStudentIds.length}명</span>
+            <button className="rounded-md border border-red-300 bg-red-50 px-3 py-2 font-bold text-red-700 disabled:opacity-40" disabled={selectedStudentIds.length === 0} onClick={deleteSelectedStudents}>선택 학생 삭제</button>
+          </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead><tr className="border-b"><th className="py-2">번호</th><th>이름</th><th>조</th><th>접속</th><th>활동1</th><th>활동2</th><th>활동3</th><th></th></tr></thead>
+          <table className="w-full min-w-[920px] text-left text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="py-2">
+                  <input
+                    type="checkbox"
+                    checked={students.length > 0 && selectedStudentIds.length === students.length}
+                    onChange={(event) => toggleAllStudents(event.target.checked)}
+                    aria-label="전체 학생 선택"
+                  />
+                </th>
+                <th>번호</th><th>이름</th><th>조</th><th>접속</th><th>활동1</th><th>활동2</th><th>활동3</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {students.map((student) => {
                 const draft = editingStudents[student.id];
                 return (
                   <tr key={student.id} className="border-b last:border-0">
+                    <td className="py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedStudentIds.includes(student.id)}
+                        onChange={() => toggleStudentSelection(student.id)}
+                        aria-label={`${student.name} 선택`}
+                      />
+                    </td>
                     <td className="py-2">
                       {draft ? (
                         <input
@@ -246,7 +341,10 @@ export default function TeacherDashboard() {
                           })}>취소</button>
                         </div>
                       ) : (
-                        <button className="rounded border px-2 py-1" onClick={() => setEditingStudents({ ...editingStudents, [student.id]: { student_number: student.student_number, name: student.name, team: student.team || '' } })}>수정</button>
+                        <div className="flex gap-1">
+                          <button className="rounded border px-2 py-1" onClick={() => setEditingStudents({ ...editingStudents, [student.id]: { student_number: student.student_number, name: student.name, team: student.team || '' } })}>수정</button>
+                          <button className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700" onClick={() => resetStudentActivities(student)}>활동 초기화</button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -256,12 +354,6 @@ export default function TeacherDashboard() {
           </table>
         </div>
       </section>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Phase1Monitor data={p1} />
-        <Phase2Monitor data={p2} />
-        <Phase3Monitor data={p3} onMark={markCorrect} />
-      </div>
     </div>
   );
 }

@@ -138,34 +138,14 @@ function phase3Payload(classCode) {
 
 function resetActivityData(classCode, phase) {
   const ids = db.prepare('SELECT id FROM students WHERE class_code = ?').all(classCode).map((row) => row.id);
-  const placeholders = ids.map(() => '?').join(',');
+  resetStudentActivityData(ids, phase);
   if (phase === 1) {
-    if (ids.length > 0) {
-      db.prepare(`DELETE FROM activity1_sns_likes WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM activity1_sns_likes WHERE post_id IN (SELECT id FROM activity1_sns_posts WHERE student_id IN (${placeholders}))`).run(...ids);
-      db.prepare(`DELETE FROM activity1_sns_posts WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM activity1_answers WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase1_responses WHERE student_id IN (${placeholders})`).run(...ids);
-    }
     db.prepare("UPDATE teachers SET activity1_step = 1, activity1_revealed = '{}' WHERE class_code = ?").run(classCode);
   }
   if (phase === 2) {
-    if (ids.length > 0) {
-      db.prepare(`DELETE FROM activity2_comment_revisions WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase2_classifications WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase2_comments WHERE student_id IN (${placeholders})`).run(...ids);
-    }
     db.prepare("UPDATE teachers SET activity2_step = 1, activity2_revealed = '{}' WHERE class_code = ?").run(classCode);
   }
   if (phase === 3) {
-    if (ids.length > 0) {
-      db.prepare(`DELETE FROM phase3_comments WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase3_selections WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase3_team_ready WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase3_votes WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase3_guesses WHERE student_id IN (${placeholders})`).run(...ids);
-      db.prepare(`DELETE FROM phase3_reflections WHERE student_id IN (${placeholders})`).run(...ids);
-    }
     db.prepare(`
       UPDATE teachers
       SET activity3_stage = 'intro',
@@ -177,6 +157,35 @@ function resetActivityData(classCode, phase) {
       WHERE class_code = ?
     `).run(classCode);
   }
+}
+
+function resetStudentActivityData(ids, phase) {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => '?').join(',');
+  if (phase === 1) {
+    db.prepare(`DELETE FROM activity1_sns_likes WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM activity1_sns_likes WHERE post_id IN (SELECT id FROM activity1_sns_posts WHERE student_id IN (${placeholders}))`).run(...ids);
+    db.prepare(`DELETE FROM activity1_sns_posts WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM activity1_answers WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase1_responses WHERE student_id IN (${placeholders})`).run(...ids);
+  }
+  if (phase === 2) {
+    db.prepare(`DELETE FROM activity2_comment_revisions WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase2_classifications WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase2_comments WHERE student_id IN (${placeholders})`).run(...ids);
+  }
+  if (phase === 3) {
+    db.prepare(`DELETE FROM phase3_comments WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase3_selections WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase3_team_ready WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase3_votes WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase3_guesses WHERE student_id IN (${placeholders})`).run(...ids);
+    db.prepare(`DELETE FROM phase3_reflections WHERE student_id IN (${placeholders})`).run(...ids);
+  }
+}
+
+function resetStudentAllActivityData(ids) {
+  [1, 2, 3].forEach((phase) => resetStudentActivityData(ids, phase));
 }
 
 function emitResetEvents(req) {
@@ -259,6 +268,34 @@ router.post('/update-student', (req, res) => {
   res.json({ ok: true, students });
 });
 
+router.post('/reset-student-activities', (req, res) => {
+  const studentId = Number(req.body.student_id);
+  if (!studentId) return res.status(400).json({ error: '초기화할 학생을 확인해주세요' });
+  const student = db.prepare('SELECT id FROM students WHERE id = ? AND class_code = ?').get(studentId, req.class_code);
+  if (!student) return res.status(404).json({ error: '학생을 찾을 수 없습니다' });
+  resetStudentAllActivityData([student.id]);
+  emitResetEvents(req);
+  const students = db.prepare('SELECT * FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(req.class_code).map(publicStudent);
+  res.json({ ok: true, students });
+});
+
+router.post('/delete-students', (req, res) => {
+  const studentIds = Array.isArray(req.body.student_ids) ? req.body.student_ids.map(Number).filter(Boolean) : [];
+  if (studentIds.length === 0) return res.status(400).json({ error: '삭제할 학생을 선택해주세요' });
+  const placeholders = studentIds.map(() => '?').join(',');
+  const ownedIds = db.prepare(`SELECT id FROM students WHERE class_code = ? AND id IN (${placeholders})`).all(req.class_code, ...studentIds).map((row) => row.id);
+  if (ownedIds.length === 0) return res.status(404).json({ error: '삭제할 학생을 찾을 수 없습니다' });
+  const ownedPlaceholders = ownedIds.map(() => '?').join(',');
+  const tx = db.transaction(() => {
+    resetStudentAllActivityData(ownedIds);
+    db.prepare(`DELETE FROM students WHERE class_code = ? AND id IN (${ownedPlaceholders})`).run(req.class_code, ...ownedIds);
+  });
+  tx();
+  emitResetEvents(req);
+  const students = db.prepare('SELECT * FROM students WHERE class_code = ? ORDER BY CAST(student_number AS INTEGER), student_number').all(req.class_code).map(publicStudent);
+  res.json({ ok: true, students, deleted_count: ownedIds.length });
+});
+
 router.post('/set-phase', (req, res) => {
   const phase = Number(req.body.phase);
   if (!Number.isInteger(phase) || phase < 0 || phase > 3) return res.status(400).json({ error: '활동 번호는 0~3 사이여야 합니다' });
@@ -330,6 +367,18 @@ router.post('/activity1/reveal', (req, res) => {
   if (!['1', '2'].includes(question) || !key) return res.status(400).json({ error: '공개할 정답을 선택해주세요' });
   const state = activity1State(req.class_code);
   const revealed = { ...state.revealed, [question]: Array.from(new Set([...(state.revealed[question] || []), key])) };
+  db.prepare('UPDATE teachers SET activity1_revealed = ? WHERE class_code = ?').run(JSON.stringify(revealed), req.class_code);
+  const nextState = activity1State(req.class_code);
+  getIo(req).emit('activity1_state_changed', nextState);
+  res.json(nextState);
+});
+
+router.post('/activity1/hide', (req, res) => {
+  const question = String(req.body.question || '');
+  if (!['1', '2'].includes(question)) return res.status(400).json({ error: '감출 정답을 선택해주세요' });
+  const state = activity1State(req.class_code);
+  const revealed = { ...state.revealed };
+  delete revealed[question];
   db.prepare('UPDATE teachers SET activity1_revealed = ? WHERE class_code = ?').run(JSON.stringify(revealed), req.class_code);
   const nextState = activity1State(req.class_code);
   getIo(req).emit('activity1_state_changed', nextState);

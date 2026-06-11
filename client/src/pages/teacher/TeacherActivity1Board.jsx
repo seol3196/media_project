@@ -13,7 +13,7 @@ const q1Answers = {
   newspaper: ['제목', '글', '사진'],
   broadcast: ['제목', '영상', '자막'],
   sns: ['글', '사진', '해시태그', '좋아요'],
-  youtube: ['제목', '썸네일', '조회수', '좋아요'],
+  youtube: ['제목', '글', '영상', '썸네일', '조회수', '좋아요'],
 };
 
 const q2Answers = {
@@ -41,8 +41,18 @@ export default function TeacherActivity1Board() {
     setShowSolutions(false);
   }, [state.step]);
 
-  async function reveal(question, key) {
-    setState(await api('/api/teacher/activity1/reveal', { method: 'POST', body: JSON.stringify({ question, key }) }));
+  async function revealAll(question, answers) {
+    let nextState = state;
+    for (const key of Object.keys(answers)) {
+      nextState = await api('/api/teacher/activity1/reveal', { method: 'POST', body: JSON.stringify({ question, key }) });
+    }
+    setState(nextState);
+    setShowSolutions(true);
+  }
+
+  async function hideAnswer(question) {
+    setState(await api('/api/teacher/activity1/hide', { method: 'POST', body: JSON.stringify({ question }) }));
+    setShowSolutions(false);
   }
 
   async function nextProblem() {
@@ -51,15 +61,6 @@ export default function TeacherActivity1Board() {
 
   async function previousProblem() {
     setState(await api('/api/teacher/activity1/previous', { method: 'POST', body: '{}' }));
-  }
-
-  function openBoardWindow(path) {
-    const opened = window.open(path, '_blank', 'width=1400,height=900,noreferrer');
-    if (opened) {
-      opened.focus();
-      return;
-    }
-    window.location.href = path;
   }
 
   return (
@@ -83,42 +84,48 @@ export default function TeacherActivity1Board() {
           {state.step === 1 && (
             <QuestionReveal
               title="이 매체가 사용한 전달 방식은 무엇인가요?"
-              showSolutions={showSolutions}
+              showSolutions={showSolutions || Boolean(state.revealed?.['1']?.length)}
               answers={q1Answers}
-              onReveal={() => setShowSolutions(true)}
+              onReveal={() => revealAll(1, q1Answers)}
+              onHide={() => hideAnswer(1)}
               renderAnswer={(value) => value.join(', ')}
             />
           )}
           {state.step === 2 && (
             <QuestionReveal
               title="각 매체의 특징을 알맞게 연결하세요."
-              showSolutions={showSolutions}
+              showSolutions={showSolutions || Boolean(state.revealed?.['2']?.length)}
               answers={q2Answers}
-              onReveal={() => setShowSolutions(true)}
+              onReveal={() => revealAll(2, q2Answers)}
+              onHide={() => hideAnswer(2)}
               renderAnswer={(value) => value}
             />
           )}
           {state.step === 3 && (
             <div className="rounded-lg border border-stone-200 p-6">
-              <h3 className="mb-3 text-2xl font-black">매체를 비교해 선택하고 이유를 쓰세요.</h3>
-              <button
-                className="rounded-md bg-amber-400 px-5 py-4 text-xl font-black text-stone-950"
-                onClick={() => openBoardWindow('/teacher/activity1-padlet')}
+              <h3 className="mb-3 text-2xl font-black">가장 정확해 보이는 매체와 마음을 가장 흔드는 매체를 골라 보고, 각각을 선택한 이유를 적어 보세요.</h3>
+              <a
+                className="inline-flex rounded-md bg-amber-400 px-5 py-4 text-xl font-black text-stone-950"
+                href="/teacher/activity1-padlet"
+                target="_blank"
+                rel="noreferrer"
               >
                 답변 살펴보기
-              </button>
+              </a>
             </div>
           )}
           {state.step === 4 && (
             <div className="rounded-lg border border-stone-200 p-6">
               <h3 className="mb-3 text-2xl font-black">실제로 SNS 게시글을 올려보세요.</h3>
               <p className="text-lg leading-8 text-stone-700">학생들이 사진을 선택하고 짧은 글을 게시하면 우리반 SNS에서 서로의 글을 볼 수 있습니다.</p>
-              <button
-                className="mt-5 rounded-md bg-rose-500 px-5 py-4 text-xl font-black text-white"
-                onClick={() => openBoardWindow('/teacher/activity1-sns')}
+              <a
+                className="mt-5 inline-flex rounded-md bg-rose-500 px-5 py-4 text-xl font-black text-white"
+                href="/teacher/activity1-sns"
+                target="_blank"
+                rel="noreferrer"
               >
                 우리반 SNS 보기
-              </button>
+              </a>
             </div>
           )}
         </section>
@@ -127,13 +134,16 @@ export default function TeacherActivity1Board() {
   );
 }
 
-function QuestionReveal({ title, showSolutions, answers, onReveal, renderAnswer }) {
+function QuestionReveal({ title, showSolutions, answers, onReveal, onHide, renderAnswer }) {
   return (
     <div>
       <div className="rounded-lg border border-stone-200 p-6">
         <h3 className="text-3xl font-black">{title}</h3>
         {!showSolutions && (
           <button className="mt-6 rounded-md bg-stone-950 px-5 py-4 text-xl font-black text-white" onClick={onReveal}>정답 확인</button>
+        )}
+        {showSolutions && (
+          <button className="mt-6 rounded-md border border-stone-300 bg-white px-5 py-4 text-xl font-black text-stone-950" onClick={onHide}>정답 감추기</button>
         )}
       </div>
       {showSolutions && (

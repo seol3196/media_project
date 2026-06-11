@@ -11,6 +11,7 @@ import TeacherActivity2Revisions from './pages/teacher/TeacherActivity2Revisions
 import TeacherActivity3Board from './pages/teacher/TeacherActivity3Board.jsx';
 import StudentDashboard from './pages/student/StudentDashboard.jsx';
 import Phase1 from './pages/student/Phase1.jsx';
+import Activity1Padlet from './pages/student/Activity1Padlet.jsx';
 import Activity1SNS from './pages/student/Activity1SNS.jsx';
 import Phase2 from './pages/student/Phase2.jsx';
 import Activity2Revisions from './pages/student/Activity2Revisions.jsx';
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/teacher/activity3-board" element={<Protected role="teacher"><TeacherActivity3Board /></Protected>} />
       <Route path="/student" element={<Protected role="student"><StudentDashboard /></Protected>} />
       <Route path="/student/phase1" element={<Protected role="student"><Phase1 /></Protected>} />
+      <Route path="/student/activity1-padlet" element={<Protected role="student"><Activity1Padlet /></Protected>} />
       <Route path="/student/activity1-sns" element={<Protected role="student"><Activity1SNS /></Protected>} />
       <Route path="/student/phase2" element={<Protected role="student"><Phase2 /></Protected>} />
       <Route path="/student/activity2-revisions" element={<Protected role="student"><Activity2Revisions /></Protected>} />

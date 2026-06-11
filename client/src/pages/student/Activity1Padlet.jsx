@@ -9,18 +9,18 @@ const mediaLabels = {
   youtube: '유튜브',
 };
 
-export default function TeacherActivity1Padlet() {
+export default function Activity1Padlet() {
   const [answers, setAnswers] = useState([]);
 
   async function load() {
-    const data = await api('/api/teacher/activity1/answers?question=3');
-    setAnswers(data.answers);
+    const data = await api('/api/student/activity1/answers?question=3');
+    setAnswers(data.answers || []);
   }
 
   useEffect(() => {
     load();
     socket.on('activity1_padlet_updated', load);
-    return () => socket.off('activity1_padlet_updated');
+    return () => socket.off('activity1_padlet_updated', load);
   }, []);
 
   return (
@@ -29,7 +29,7 @@ export default function TeacherActivity1Padlet() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold text-amber-800">활동1 문제 3</p>
-            <h1 className="text-4xl font-black text-stone-950">학생 답변 살펴보기</h1>
+            <h1 className="text-4xl font-black text-stone-950">친구들 답변 보기</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="rounded-md border border-stone-300 bg-white px-4 py-2 font-bold text-stone-800 shadow-sm" onClick={() => window.close()}>창닫기</button>
@@ -50,6 +50,7 @@ export default function TeacherActivity1Padlet() {
               </div>
             </article>
           ))}
+          {answers.length === 0 && <div className="rounded-md bg-white p-5 font-bold text-stone-500 shadow-sm">아직 제출된 답변이 없습니다.</div>}
         </section>
       </div>
     </div>
