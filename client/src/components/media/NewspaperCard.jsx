@@ -11,7 +11,7 @@ export default function NewspaperCard({ card }) {
         <div>
           <h3 className="text-4xl font-black leading-tight text-stone-950">{card.headline}</h3>
           <p className="mt-3 text-sm text-stone-500">{card.byline} · {card.date}</p>
-          <p className="mt-5 columns-1 leading-8 text-stone-800 md:columns-2">{card.body}</p>
+          <p className="mt-5 columns-1 leading-8 text-stone-800 md:columns-2 md:[column-gap:2rem] md:[column-rule:1px_solid_#d6d3d1]">{card.body}</p>
           <div className="mt-5 border-l-4 border-stone-900 bg-stone-100 p-3 text-sm font-bold leading-6 text-stone-700">시민 통행 불편이 커지면서 시는 관련 조례 마련을 검토하고 있다.</div>
         </div>
         <figure>

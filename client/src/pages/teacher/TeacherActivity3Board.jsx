@@ -116,12 +116,13 @@ export default function TeacherActivity3Board() {
             <h1 className="text-4xl font-black">댓글전쟁 대시보드</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            {state.stage !== 'intro' && <button className="rounded-md border border-white/30 px-4 py-3 font-black text-white" onClick={() => setStage('intro')}>이전 설명</button>}
+            {state.stage !== 'intro' && state.stage !== 'results' && <button className="rounded-md border border-white/30 px-4 py-3 font-black text-white" onClick={() => setStage('intro')}>이전 설명</button>}
             {state.stage === 'manipulation' && <button className="rounded-md bg-white px-4 py-3 font-black text-stone-950" onClick={() => setStage('comment')}>{allTeamsDone ? '댓글 달러 가기' : '끝내고 댓글 달러 가기'}</button>}
             {state.stage === 'comment' && <button className="rounded-md bg-white px-4 py-3 font-black text-stone-950" onClick={() => setStage('hunt')}>{allCommentsDone ? '조작된 댓글 찾기' : '활동 완료하고 찾기'}</button>}
             {state.stage === 'hunt' && state.hunt_index > 0 && <button className="rounded-md border border-white/30 px-4 py-3 font-black text-white" onClick={() => huntMove('previous')}>이전 게시물</button>}
             {state.stage === 'hunt' && state.hunt_index < data.posts.length - 1 && <button className="rounded-md bg-white px-4 py-3 font-black text-stone-950" onClick={() => huntMove('next')}>{allSelected ? '다음 게시물' : '끝내고 다음 게시물'}</button>}
             {state.stage === 'hunt' && state.hunt_index === data.posts.length - 1 && <button className="rounded-md bg-rose-500 px-4 py-3 font-black text-white" onClick={reveal}>정답 공개하기</button>}
+            {state.stage === 'results' && <button className="rounded-md bg-white px-4 py-3 font-black text-stone-950" onClick={() => window.close()}>끝내기</button>}
           </div>
         </header>
 

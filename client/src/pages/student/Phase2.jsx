@@ -73,36 +73,38 @@ export default function Phase2() {
         </div>
       </div>
 
-      <Card card={displayPost} />
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
+        <Card card={displayPost} />
 
-      <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-        <h3 className="mb-4 text-xl font-black">{mediaLabels[post.type]} 게시물 댓글</h3>
-        <div className="space-y-3">
-          {discussionComments.map((comment) => (
-            <article key={comment.id} className={`rounded-lg border p-4 ${comment.needsRevision && isRevealed ? 'border-rose-200 bg-rose-50' : 'border-stone-200 bg-white'}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <p className="leading-7 text-stone-900">{comment.text}</p>
-                {comment.needsRevision && isRevealed && !editing && <button className="rounded-md bg-rose-500 px-3 py-2 text-sm font-bold text-white" onClick={() => setEditing(true)}>수정</button>}
-              </div>
-              {comment.needsRevision && isRevealed && editing && (
-                <div className="mt-4 space-y-2">
-                  <textarea
-                    className="min-h-24 w-full rounded-md border border-rose-200 bg-white p-3 leading-7"
-                    maxLength={220}
-                    placeholder="상대방을 존중하고 근거가 드러나도록 댓글을 고쳐 써보세요."
-                    value={revisionText}
-                    onChange={(event) => setRevisionText(event.target.value)}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-stone-500">{revisionText.length}/220</span>
-                    <button className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={submitRevision}>제출</button>
-                  </div>
+        <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+          <h3 className="mb-4 text-xl font-black">{mediaLabels[post.type]} 게시물 댓글</h3>
+          <div className="space-y-3">
+            {discussionComments.map((comment) => (
+              <article key={comment.id} className={`rounded-lg border p-4 ${comment.needsRevision && isRevealed ? 'border-rose-200 bg-rose-50' : 'border-stone-200 bg-white'}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <p className="leading-7 text-stone-900">{comment.text}</p>
+                  {comment.needsRevision && isRevealed && !editing && <button className="rounded-md bg-rose-500 px-3 py-2 text-sm font-bold text-white" onClick={() => setEditing(true)}>수정</button>}
                 </div>
-              )}
-            </article>
-          ))}
-        </div>
-      </section>
+                {comment.needsRevision && isRevealed && editing && (
+                  <div className="mt-4 space-y-2">
+                    <textarea
+                      className="min-h-24 w-full rounded-md border border-rose-200 bg-white p-3 leading-7"
+                      maxLength={220}
+                      placeholder="상대방을 존중하고 근거가 드러나도록 댓글을 고쳐 써보세요."
+                      value={revisionText}
+                      onChange={(event) => setRevisionText(event.target.value)}
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-stone-500">{revisionText.length}/220</span>
+                      <button className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={submitRevision}>제출</button>
+                    </div>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
 
       <div className="flex flex-wrap gap-2 rounded-lg border border-stone-200 bg-white p-4">
         <button

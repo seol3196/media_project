@@ -19,10 +19,10 @@ const mediaLabels = {
   sns: 'SNS',
   youtube: '유튜브',
 };
-const methodOptions = ['제목', '글', '사진', '영상', '자막', '해시태그', '썸네일', '조회수', '좋아요'];
+const methodOptions = ['제목', '글', '사진', '영상', '해시태그', '썸네일', '조회수', '좋아요'];
 const q1Answers = {
   newspaper: ['제목', '글', '사진'],
-  broadcast: ['제목', '영상', '자막'],
+  broadcast: ['제목', '영상', '글'],
   sns: ['글', '사진', '해시태그', '좋아요'],
   youtube: ['제목', '글', '영상', '썸네일', '조회수', '좋아요'],
 };
@@ -30,11 +30,11 @@ const featureOptions = [
   '사람들이 쉽게 반응하고 공유한다',
   '글과 사진으로 자세히 전달한다',
   '제목과 썸네일로 관심을 끈다',
-  '영상과 자막으로 빠르게 전달한다',
+  '영상과 글로 빠르게 전달한다',
 ];
 const q2Answers = {
   newspaper: '글과 사진으로 자세히 전달한다',
-  broadcast: '영상과 자막으로 빠르게 전달한다',
+  broadcast: '영상과 글로 빠르게 전달한다',
   sns: '사람들이 쉽게 반응하고 공유한다',
   youtube: '제목과 썸네일로 관심을 끈다',
 };
@@ -377,7 +377,6 @@ export default function Phase1() {
           )}
           <div className="mt-4 flex flex-wrap gap-2">
             {step < 4 && !submitted && <button disabled={!ready} className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white disabled:bg-stone-300">제출</button>}
-            {submitted && step === 1 && <button type="button" className="rounded-md border border-stone-300 px-4 py-2 font-bold" onClick={goNext}>다음 문제 풀기</button>}
             {submitted && step === 3 && <button type="button" className="rounded-md border border-stone-300 px-4 py-2 font-bold" onClick={retractAnswer}>회수하고 다시 작성</button>}
             {submitted && step === 3 && <a className="rounded-md border border-stone-300 px-4 py-2 font-bold" href="/student/activity1-padlet" target="_blank" rel="noreferrer">친구들 답변 보기</a>}
             {step === 4 && <button type="button" disabled={!allSnsChecklistChecked} className="rounded-md bg-stone-950 px-4 py-2 font-bold text-white disabled:bg-stone-300" onClick={submitSnsPost}>게시하기</button>}

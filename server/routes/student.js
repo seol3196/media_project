@@ -428,7 +428,7 @@ router.post('/activity3/selection', (req, res) => {
   const post = posts[state.hunt_index] || posts[0];
   const selected = Array.isArray(req.body.selected_comment_ids) ? req.body.selected_comment_ids.map(Number).filter(Boolean) : [];
   if (String(req.body.post_id || '') !== post.team) return res.status(409).json({ error: '현재 게시물이 아닙니다' });
-  if (selected.length < 3 || selected.length > 4) return res.status(400).json({ error: '댓글은 3개 또는 4개를 선택해주세요' });
+  if (selected.length < 1 || selected.length > 4) return res.status(400).json({ error: '댓글은 1개 이상, 최대 4개까지 선택해주세요' });
   db.prepare(`
     INSERT INTO phase3_selections (student_id, post_id, selected_comment_ids, submitted_at)
     VALUES (?, ?, ?, CURRENT_TIMESTAMP)

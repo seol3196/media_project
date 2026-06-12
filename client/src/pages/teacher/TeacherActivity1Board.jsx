@@ -11,14 +11,14 @@ const mediaLabels = {
 
 const q1Answers = {
   newspaper: ['제목', '글', '사진'],
-  broadcast: ['제목', '영상', '자막'],
+  broadcast: ['제목', '영상', '글'],
   sns: ['글', '사진', '해시태그', '좋아요'],
   youtube: ['제목', '글', '영상', '썸네일', '조회수', '좋아요'],
 };
 
 const q2Answers = {
   newspaper: '글과 사진으로 자세히 전달한다',
-  broadcast: '영상과 자막으로 빠르게 전달한다',
+  broadcast: '영상과 글로 빠르게 전달한다',
   sns: '사람들이 쉽게 반응하고 공유한다',
   youtube: '제목과 썸네일로 관심을 끈다',
 };
@@ -63,6 +63,15 @@ export default function TeacherActivity1Board() {
     setState(await api('/api/teacher/activity1/previous', { method: 'POST', body: '{}' }));
   }
 
+  function openTeacherWindow(path, name) {
+    const opened = window.open(path, name);
+    if (opened) {
+      opened.focus();
+      return;
+    }
+    alert('새 창을 열 수 없습니다. 브라우저의 팝업 차단 설정을 확인해주세요.');
+  }
+
   return (
     <div className="min-h-screen bg-stone-950 p-6 text-white">
       <div className="mx-auto max-w-6xl space-y-5">
@@ -104,28 +113,26 @@ export default function TeacherActivity1Board() {
           {state.step === 3 && (
             <div className="rounded-lg border border-stone-200 p-6">
               <h3 className="mb-3 text-2xl font-black">가장 정확해 보이는 매체와 마음을 가장 흔드는 매체를 골라 보고, 각각을 선택한 이유를 적어 보세요.</h3>
-              <a
+              <button
+                type="button"
                 className="inline-flex rounded-md bg-amber-400 px-5 py-4 text-xl font-black text-stone-950"
-                href="/teacher/activity1-padlet"
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => openTeacherWindow('/teacher/activity1-padlet', 'activity1-padlet')}
               >
                 답변 살펴보기
-              </a>
+              </button>
             </div>
           )}
           {state.step === 4 && (
             <div className="rounded-lg border border-stone-200 p-6">
               <h3 className="mb-3 text-2xl font-black">실제로 SNS 게시글을 올려보세요.</h3>
               <p className="text-lg leading-8 text-stone-700">학생들이 사진을 선택하고 짧은 글을 게시하면 우리반 SNS에서 서로의 글을 볼 수 있습니다.</p>
-              <a
+              <button
+                type="button"
                 className="mt-5 inline-flex rounded-md bg-rose-500 px-5 py-4 text-xl font-black text-white"
-                href="/teacher/activity1-sns"
-                target="_blank"
-                rel="noreferrer"
+                onClick={() => openTeacherWindow('/teacher/activity1-sns', 'activity1-sns')}
               >
                 우리반 SNS 보기
-              </a>
+              </button>
             </div>
           )}
         </section>

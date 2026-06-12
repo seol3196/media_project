@@ -40,12 +40,12 @@ export default function Activity1Padlet() {
           {answers.map((answer, index) => (
             <article key={answer.id} className={`mb-4 break-inside-avoid rounded-md border border-amber-200 p-4 shadow-md ${index % 3 === 0 ? 'bg-yellow-100' : index % 3 === 1 ? 'bg-emerald-100' : 'bg-sky-100'}`}>
               <div className="mb-3 text-sm font-black text-stone-600">{answer.student_number}번 {answer.name}</div>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-3 whitespace-pre-wrap text-lg leading-8 text-stone-900">
                 <p><b>정확:</b> {mediaLabels[answer.payload.most_accurate] || answer.payload.most_accurate}</p>
-                <p><b>관심:</b> {mediaLabels[answer.payload.most_emotional] || answer.payload.most_emotional}</p>
+                <p><b>정확해 보인 이유:</b> {answer.payload.accurate_reason || answer.payload.free_text}</p>
               </div>
               <div className="mt-3 space-y-3 whitespace-pre-wrap text-lg leading-8 text-stone-900">
-                <p><b>정확해 보인 이유:</b> {answer.payload.accurate_reason || answer.payload.free_text}</p>
+                <p><b>마음:</b> {mediaLabels[answer.payload.most_emotional] || answer.payload.most_emotional}</p>
                 <p><b>마음을 흔든 이유:</b> {answer.payload.emotional_reason || answer.payload.free_text}</p>
               </div>
             </article>

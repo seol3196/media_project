@@ -137,6 +137,10 @@ export default function Phase3() {
   }
 
   async function submitSelection() {
+    if (selected.length < 1) {
+      alert('댓글을 1개 이상 선택해주세요.');
+      return;
+    }
     await api('/api/student/activity3/selection', { method: 'POST', body: JSON.stringify({ post_id: data.hunt_post.team, selected_comment_ids: selected }) });
     alert('선택이 완료되었습니다.');
     load();
@@ -211,11 +215,14 @@ export default function Phase3() {
             const post = visibleAvailablePosts.find((item) => item.team === commentPostTeam);
             const value = normalDrafts[post.team] ?? data.my_normal_comments?.[post.team] ?? '';
             return (
-              <article className="rounded-lg border border-stone-200 bg-white p-4">
+              <article className="grid items-start gap-5 rounded-lg border border-stone-200 bg-white p-4 lg:grid-cols-[minmax(0,1fr)_380px]">
                 <button className="mb-3 rounded-md border px-3 py-2 font-bold" onClick={() => setCommentPostTeam(null)}>목록 보기</button>
-                <PostCard post={post} compact />
-                <textarea className="mt-3 min-h-24 w-full rounded-md border p-3" placeholder="찬성 또는 반대 입장을 담아 댓글을 쓰세요." value={value} onChange={(event) => setNormalDrafts({ ...normalDrafts, [post.team]: event.target.value })} />
-                <button className="mt-2 rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={() => submitNormalComment(post.team)}>{data.my_normal_comments?.[post.team] ? '수정하기' : '댓글 등록'}</button>
+                <div className="lg:col-start-1"><PostCard post={post} compact /></div>
+                <div className="space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-4 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+                  <h3 className="text-xl font-black">댓글 쓰기</h3>
+                  <textarea className="min-h-40 w-full rounded-md border bg-white p-3" placeholder="찬성 또는 반대 입장을 담아 댓글을 쓰세요." value={value} onChange={(event) => setNormalDrafts({ ...normalDrafts, [post.team]: event.target.value })} />
+                  <button className="w-full rounded-md bg-stone-950 px-4 py-2 font-bold text-white" onClick={() => submitNormalComment(post.team)}>{data.my_normal_comments?.[post.team] ? '수정하기' : '댓글 등록'}</button>
+                </div>
               </article>
             );
           })()}
@@ -224,19 +231,23 @@ export default function Phase3() {
 
       {stage === 'hunt' && (
         <section className="space-y-4">
-          <PostCard post={data.hunt_post} label="선생님이 공개한 게시글" />
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 font-bold leading-7">
-            우리 모둠이 조작한 게시글에선 조작된 댓글을 맞혀도 점수가 없습니다. 친구들이 의심하지 않도록 조작 댓글과 조작이 아닌 댓글을 섞어서 선택하세요.
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <PostCard post={data.hunt_post} label="선생님이 공개한 게시글" />
+            <aside className="space-y-4 lg:sticky lg:top-4">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 font-bold leading-7">
+                조작된 댓글이라고 생각되는 댓글을 1개 이상, 최대 4개까지 선택하세요.
+              </div>
+              <div className="space-y-3">
+                {data.hunt_comments.map((comment) => (
+                  <button key={comment.id} className={`w-full rounded-lg border bg-white p-4 text-left leading-7 ${selected.includes(comment.id) ? 'border-emerald-500 ring-2 ring-emerald-300' : 'border-stone-200'}`} onClick={() => toggleComment(comment.id)}>
+                    <div className="mb-1 text-sm font-black text-stone-500">{comment.nickname || '익명'}</div>
+                    {comment.content}
+                  </button>
+                ))}
+              </div>
+              <button className="w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitSelection}>선택완료 ({selected.length}/최대 4)</button>
+            </aside>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {data.hunt_comments.map((comment) => (
-              <button key={comment.id} className={`rounded-lg border bg-white p-4 text-left leading-7 ${selected.includes(comment.id) ? 'border-emerald-500 ring-2 ring-emerald-300' : 'border-stone-200'}`} onClick={() => toggleComment(comment.id)}>
-                <div className="mb-1 text-sm font-black text-stone-500">{comment.nickname || '익명'}</div>
-                {comment.content}
-              </button>
-            ))}
-          </div>
-          <button className="rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitSelection}>선택완료 ({selected.length}/3~4)</button>
         </section>
       )}
 
