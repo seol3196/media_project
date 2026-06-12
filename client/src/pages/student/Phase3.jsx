@@ -85,6 +85,7 @@ export default function Phase3() {
   const [data, setData] = useState(null);
   const [missionOpen, setMissionOpen] = useState(false);
   const [missionComment, setMissionComment] = useState('');
+  const [missionEditing, setMissionEditing] = useState(true);
   const [normalDrafts, setNormalDrafts] = useState({});
   const [commentPostTeam, setCommentPostTeam] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -98,6 +99,7 @@ export default function Phase3() {
     const next = await api('/api/student/activity3/state');
     setData(next);
     setMissionComment(next.mission_comment?.content || '');
+    setMissionEditing(!next.mission_comment);
     setSelected(next.current_selection || []);
   }
 
@@ -108,8 +110,13 @@ export default function Phase3() {
   }, [navigate]);
 
   async function submitMissionComment() {
+    if (!missionComment.trim()) {
+      alert('댓글을 입력해주세요.');
+      return;
+    }
     await api('/api/student/activity3/mission-comment', { method: 'POST', body: JSON.stringify({ content: missionComment }) });
     alert('댓글이 등록되었습니다.');
+    setMissionEditing(false);
     load();
   }
 
@@ -174,15 +181,8 @@ export default function Phase3() {
 
       {stage === 'manipulation' && (
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
-            <PostCard post={data.team_post} label={`${data.team}조 게시글`} />
-            <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
-              <label className="mb-2 block text-sm font-black text-stone-700">조작 댓글 작성</label>
-              <textarea className="min-h-32 w-full rounded-md border p-3" placeholder="미션에 맞춰 조작 댓글을 작성하세요." value={missionComment} onChange={(event) => setMissionComment(event.target.value)} />
-              <button className="mt-3 w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitMissionComment}>댓글 등록</button>
-            </div>
-          </div>
-          <aside className="space-y-4">
+          <PostCard post={data.team_post} label={`${data.team}조 게시글`} />
+          <aside className="space-y-4 lg:sticky lg:top-4">
             <button className="w-full animate-pulse rounded-lg bg-amber-300 px-4 py-4 text-xl font-black text-stone-950" onClick={() => setMissionOpen(!missionOpen)}>미션 쪽지</button>
             {missionOpen && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -190,6 +190,27 @@ export default function Phase3() {
                 <p className="mt-3 whitespace-pre-wrap leading-7">{data.team_post.mission}</p>
               </div>
             )}
+            <div className="rounded-lg border border-stone-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-3 text-xl font-black">조작 댓글 작성</h3>
+              {missionEditing ? (
+                <>
+                  <textarea
+                    className="min-h-40 w-full rounded-md border p-3"
+                    placeholder="미션에 맞춰 조작 댓글을 작성하세요."
+                    value={missionComment}
+                    onChange={(event) => setMissionComment(event.target.value)}
+                  />
+                  <button className="mt-3 w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={submitMissionComment}>댓글 등록</button>
+                </>
+              ) : (
+                <>
+                  <div className="min-h-32 whitespace-pre-wrap rounded-md border border-stone-200 bg-stone-100 p-3 leading-7 text-stone-500">
+                    {missionComment}
+                  </div>
+                  <button className="mt-3 w-full rounded-md bg-stone-950 px-4 py-3 font-bold text-white" onClick={() => setMissionEditing(true)}>수정하기</button>
+                </>
+              )}
+            </div>
             <button disabled={!readyEnabled} className="w-full rounded-md border px-4 py-3 font-bold disabled:text-stone-300" onClick={ready}>준비완료</button>
             {data.ready && <div className="rounded-md bg-emerald-50 p-3 font-bold text-emerald-700">준비완료 상태입니다.</div>}
           </aside>
